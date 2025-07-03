@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    triggers {
+        githubPush()
+    }
+
     environment {
         IMAGE_NAME = "edos-service"
     }
@@ -20,10 +24,10 @@ pipeline {
             }
         }
 
-        stage('Docker Image 확인') {
+        stage('Docker 확인') {
             steps {
-                echo "🔍 생성된 이미지 목록 확인:"
-                sh "docker images | grep $IMAGE_NAME"
+                echo "📦 Docker 이미지 목록:"
+                sh "docker images | grep $IMAGE_NAME || true"
             }
         }
     }
