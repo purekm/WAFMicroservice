@@ -28,5 +28,6 @@
 -Docker </br>
 -Kubernetes </br>
 -Python(컨테이너 구현 시 이용) </br>
+-Jenkins </br>
 
 #### 솔루션 개요
