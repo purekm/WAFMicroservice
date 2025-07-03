@@ -18,6 +18,11 @@ Jenkins에 대한 공부를 진행하며, Jenkins와 Github 연동 테스트 진
 
 ngrok에 200 OK 가 처리되었으며, Jenkins에서 System Log 또한 잘 받았다고 로그가 나옴
 하지만.. 빌드는 아직 되지 않음
+Jenkins에서 Docker를 통한 이미지 자동 빌드를 실행 중 컨테이너를 지워서 처음부터 다시 시작..
+시행착오
+1. Jenkins 컨테이너에는 Docker cli가 깔려있어야 함
+2. docker socket을 실행할 수 있는 권한을 jenkins에도 줘야함
+
 
 
 
