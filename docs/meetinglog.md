@@ -10,4 +10,5 @@
 #### 금일 내용
 EDoS에 대한 조사</br>
 #### 다음날 할일
-Jenkins에 대한 공부
+Jenkins에 대한 공부를 진행하며, Jenkins와 Github 연동 테스트 진행 중.
+테스트를 purekm의 repo로 진행 중
