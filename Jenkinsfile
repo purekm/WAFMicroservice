@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "edos-service"
-        IMAGE_TAG = "latest"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
         CONTAINER_NAME = "edos-test"
         PORT = "5000"
     }
@@ -54,7 +54,7 @@ pipeline {
                     discordSend(
                         webhookURL: DISCORD_URL,
                         title: "${env.JOB_NAME} ✅ 성공",
-                        description: "🎉 Build #${env.BUILD_NUMBER} 성공!\n${env.BUILD_URL}",
+                        description: "🎉 Build #${env.BUILD_NUMBER} 성공!",
                         result: currentBuild.currentResult
                     )
                 }
@@ -67,7 +67,7 @@ pipeline {
                     discordSend(
                         webhookURL: DISCORD_URL,
                         title: "${env.JOB_NAME} ❌ 실패",
-                        description: "🚨 Build #${env.BUILD_NUMBER} 실패...\n${env.BUILD_URL}",
+                        description: "🚨 Build #${env.BUILD_NUMBER} 실패...\n",
                         result: currentBuild.currentResult
                     )
                 }
