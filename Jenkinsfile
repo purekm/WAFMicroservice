@@ -3,6 +3,9 @@ pipeline {
 
     environment {
         IMAGE_NAME = "edos-service"
+        IMAGE_TAG = "latest"
+        CONTAINER_NAME = "edos-test"
+        PORT = "5000"
     }
 
     stages {
@@ -20,11 +23,33 @@ pipeline {
             }
         }
 
-        stage('Docker 확인') {
+        stage('Remove Old Container') {
             steps {
-                echo "📦 Docker 이미지 목록:"
-                sh "docker images | grep $IMAGE_NAME || true"
+                echo "🗑 기존 컨테이너 삭제 시도..."
+                sh """
+                    docker stop $CONTAINER_NAME || true
+                    docker rm $CONTAINER_NAME || true
+                """
             }
+        }
+
+        stage('Run New Container') {
+            steps {
+                echo "🚀 새 컨테이너 실행 중..."
+                sh "docker run -d -p $PORT:$PORT --name $CONTAINER_NAME $IMAGE_NAME:$IMAGE_TAG"
+            }
+        }
+
+        stage('Check Running') {
+            steps {
+                echo "📦 실행 중인 컨테이너 확인:"
+                sh "docker ps | grep $CONTAINER_NAME || true"
+            }
+        }
+    }
+    post {
+        failure {
+            echo "❌ 빌드 또는 배포 실패!"
         }
     }
 }
