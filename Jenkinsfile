@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "edos-service"
-        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        IMAGE_TAG = "latest"
         CONTAINER_NAME = "edos-test"
         PORT = "5000"
     }
