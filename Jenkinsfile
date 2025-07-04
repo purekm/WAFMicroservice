@@ -50,22 +50,27 @@ pipeline {
     post {
         success {
             script {
-                discordSend(
-                    webhookURL: credentials('Discord_Webhook'),
-                    title: "${env.JOB_NAME} ✅ 성공",
-                    description: "🎉 Build #${env.BUILD_NUMBER} 성공!\n${env.BUILD_URL}",
-                    result: currentBuild.currentResult
-                )
+                withCredentials([string(credentialsId: 'Discord_Webhook', variable: 'DISCORD_URL')]) {
+                    discordSend(
+                        webhookURL: DISCORD_URL,
+                        title: "${env.JOB_NAME} ✅ 성공",
+                        description: "🎉 Build #${env.BUILD_NUMBER} 성공!\n${env.BUILD_URL}",
+                        result: currentBuild.currentResult
+                    )
+                }
             }
         }
+
         failure {
             script {
-                discordSend(
-                    webhookURL: credentials('Discord_Webhook'),
-                    title: "${env.JOB_NAME} ❌ 실패",
-                    description: "🚨 Build #${env.BUILD_NUMBER} 실패...\n${env.BUILD_URL}",
-                    result: currentBuild.currentResult
-                )
+                withCredentials([string(credentialsId: 'Discord_Webhook', variable: 'DISCORD_URL')]) {
+                    discordSend(
+                        webhookURL: DISCORD_URL,
+                        title: "${env.JOB_NAME} ❌ 실패",
+                        description: "🚨 Build #${env.BUILD_NUMBER} 실패...\n${env.BUILD_URL}",
+                        result: currentBuild.currentResult
+                    )
+                }
             }
         }
     }
