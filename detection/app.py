@@ -1,10 +1,27 @@
-# app.py
-from flask import Flask
-app = Flask(__name__)
+from fastapi import FastAPI, Request
+from .detection import detect_anomaly
 
-@app.route("/")
-def home():
-    return "여기까지 진행해보았습니다 동수씨."
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+app = FastAPI()
+
+@app.post("/detect")
+async def detect(request: Request):
+    data = await request.json()
+    is_anomaly = detect_anomaly(data)
+
+    if is_anomaly:
+        ip = data.get("ip")
+        print(f"[🚨 탐지] 이상 트래픽 감지! IP: {ip}, UA: {data.get('user_agent')}")
+
+    else:
+        ip = data.get("ip")
+        print(f"[✅ 정상] IP: {ip}")
+
+    return {
+        "ip": data.get("ip"),
+        "anomaly": is_anomaly
+    }
+
+@app.get("/")
+async def root():
+    return {"message": "FastAPI is running!"}
