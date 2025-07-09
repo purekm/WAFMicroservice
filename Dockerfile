@@ -1,6 +1,6 @@
 # Dockerfile (위치: WAFMicroservice/Dockerfile)
 
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 # 작업 디렉토리 설정
 WORKDIR /app
