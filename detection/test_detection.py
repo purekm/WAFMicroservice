@@ -1,6 +1,14 @@
 import requests
 import time
+from detection import _ip_timestamps, _ip_uri_hits
+import random
 
+## 이전 요청으로 인한 오탐 방지용
+def clear_rule_cache(): 
+    _ip_timestamps.clear()
+    _ip_uri_hits.clear()
+    print("✅ Rule 캐시 초기화됨:", len(_ip_timestamps))
+    
 API_URL = "http://127.0.0.1:8000/detect"
 
 
@@ -69,3 +77,4 @@ def test_cases() -> None:
 
 if __name__ == "__main__":
     test_cases()
+    generate_random_test_cases(30)

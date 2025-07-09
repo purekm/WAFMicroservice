@@ -17,7 +17,7 @@ Stages
 
 from __future__ import annotations
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Dict
 import geoip2.database
 
