@@ -1,1 +1,8 @@
-flask
+fastapi
+uvicorn[standard]
+scikit-learn
+pandas
+numpy
+joblib
+requests
+geoip2
