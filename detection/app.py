@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from .detection import detect_anomaly
+from detection import detect_anomaly
 
 
 app = FastAPI()
