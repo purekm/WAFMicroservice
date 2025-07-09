@@ -1,46 +1,65 @@
 """
 ml_detection.py
-───────────────
-• 사전 학습된 모델(model.pkl) 로드 → ml_detect(data) 로 이상 여부 반환
-• 기본 예시는 IsolationForest (비지도)  ➜ 모델 파일이 없으면 항상 False 반환
-• feature_vector(data) 함수에서 필요한 특징 벡터를 정의해 주세요.
+────────────────
+· model.pkl( Isolation-Forest + LabelEncoder 번들 ) 로드
+· ml_detect(data) → 이상 여부(bool) 반환
 """
 
-import os, joblib, numpy as np
-import pandas as pd
+import os, joblib, pandas as pd
 
-_MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
-
+#────────────────── 모델 로드 ──────────────────#
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
 try:
-    _model = joblib.load(_MODEL_PATH)
-    _model_loaded = True
+    bundle      = joblib.load(MODEL_PATH)
+    _model      = bundle["model"]
+    _enc        = bundle["encoder"]
+    _model_none = False
 except FileNotFoundError:
-    _model_loaded = False
-    _model = None
-    print("[ML-DETECT] 모델 파일이 없습니다(model.pkl). 모든 요청을 정상으로 간주합니다.")
+    _model_none = True           # 모델이 없으면 항상 정상(True → 미탐지)
 
+#────────────────── 전처리 ─────────────────────#
+def _norm_accept(raw: str | None) -> str:
+    """Accept 헤더를 4가지 카테고리(html|json|wildcard|none)로 정규화"""
+    if not raw:
+        return "none"
+    raw = raw.lower()
+    if "*/*" in raw:
+        return "wildcard"
+    if "json" in raw:
+        return "json"
+    if "html" in raw:
+        return "html"
+    return "none"
+
+_FEATURES = ["req_count", "interval", "uri_len", "ua_len", "accept_type"]
 
 def _feature_vector(data: dict) -> pd.DataFrame:
-    """
-    특징 벡터를 DataFrame으로 반환 → Sklearn 경고 제거용
-    """
-    req_count   = data.get("req_count", 0)
-    interval    = data.get("interval", 0.0)
-    uri_len     = len(data.get("uri", "/"))
-    ua_len      = len(data.get("user_agent", ""))
+    hdr = {k.lower(): v for k, v in (data.get("headers") or {}).items()}
 
-    return pd.DataFrame([{
-        "req_count": req_count,
-        "interval": interval,
-        "uri_len": uri_len,
-        "ua_len": ua_len
+    accept_enc = 0
+    if not _model_none:                       # encoder가 로드된 경우에만 변환
+        accept_enc = _enc.transform([_norm_accept(hdr.get("accept"))])[0]
+
+    vec = pd.DataFrame([{
+        "req_count"  : data.get("req_count", 0),
+        "interval"   : data.get("interval", 0.0),
+        "uri_len"    : len(data.get("uri", "/")),
+        "ua_len"     : len(hdr.get("user-agent", "")),
+        "accept_type": accept_enc,
     }])
 
+    return vec.loc[:, _FEATURES]              # 학습 시 열 순서 고정
+
+#────────────────── 추론 API ───────────────────#
 def ml_detect(data: dict) -> bool:
-    """ML 기반 이상 탐지 (모델이 없으면 False)"""
-    if not _model_loaded:
+    """
+    True  → 이상 트래픽
+    False → 정상
+    (model.pkl 이 없으면 항상 False)
+    """
+    if _model_none:
         return False
 
-    vec = _feature_vector(data)
-    pred = _model.predict(vec)      # IsolationForest  →  -1:이상 / 1:정상
+    vec  = _feature_vector(data)
+    pred = _model.predict(vec)                # -1:이상, 1:정상
     return bool(pred[0] == -1)

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
-from .detection import rule_detect
-from .ml_detection import ml_detect  # ML 탐지기 (예: IsolationForest 등)
+from detection import rule_detect
+from ml_detection import ml_detect  # ML 탐지기 (예: IsolationForest 등)
 
 app = FastAPI()
 

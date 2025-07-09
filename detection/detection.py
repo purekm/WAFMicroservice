@@ -17,7 +17,7 @@ Stages
 
 from __future__ import annotations
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Dict
 import geoip2.database
 
@@ -115,8 +115,12 @@ def stage4_check_ja3(headers: dict) -> bool:
     return False
 
 
+# ───────── 상태 보존용 캐시 ─────────
+_ip_timestamps: Dict[str, deque] = defaultdict(deque)        # IP별 요청 시각
+_ip_uri_hits: Dict[str, Dict[str, deque]] = defaultdict(lambda: defaultdict(deque)) # 특정 IP 반복 여부 확인
+
 # ───────────────── 메인 탐지 함수 ────────────────
-def detect_anomaly(data: dict) -> bool:
+def rule_detect(data: dict) -> bool:
     """
     Parameters
     ----------
