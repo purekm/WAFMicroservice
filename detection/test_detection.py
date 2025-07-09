@@ -11,107 +11,70 @@ def clear_rule_cache():
     
 API_URL = "http://127.0.0.1:8000/detect"
 
-def send_request(ip, ua, extra=None):
-    if extra is None:
-        extra = {}
 
-    payload = {
-        "ip": ip,
-        "user_agent": ua,
-    }
-    payload.update(extra)
+def send_request(
+    ip: str,
+    ua: str,
+    accept: str | None = None,
+    ja3: str | None = None,
+) -> None:
+    """단일 요청 전송 후 탐지 결과 출력"""
+    headers = {"User-Agent": ua}
+    if accept:
+        headers["Accept"] = accept
+    if ja3:
+        headers["X-JA3"] = ja3
 
-    response = requests.post(API_URL, json=payload)
-    result = response.json()
-    print(f"[{ip}] UA: {ua} → anomaly: {result['anomaly']} ({result['method']})")
+    payload = {"ip": ip, "headers": headers}
+    resp = requests.post(API_URL, json=payload, timeout=3)
+    body = resp.json() if resp.ok else {"anomaly": "HTTP error"}
+
+    print(
+        f"[{ip:<15}] "
+        f"UA={ua!r:18} "
+        f"Accept={accept or '-':9} "
+        f"JA3={ja3 or '-':34} "
+        f"→ anomaly={body['anomaly']}"
+    )
 
 
-def test_cases():
-    clear_rule_cache()
-
+def test_cases() -> None:
+    # Stage-1: 정상·UA 블랙리스트·Accept 누락
     print("✅ 정상 요청")
-    send_request(
-        ip="1.1.1.1",
-        ua="Mozilla/5.0",
-        extra={
-            "req_count": 20,
-            "interval": 3.0,
-            "uri": "/home",
-            "timestamp": time.time()
-        }
-    )
+    send_request("9.9.9.9", "Mozilla/5.0", "text/html")
 
-    print("\n❗ 비정상 UA 요청")
-    send_request(
-        ip="8.8.8.8",
-        ua="curl/7.88.1",
-        extra={
-            "req_count": 10,
-            "interval": 2.5,
-            "uri": "/home",
-            "timestamp": time.time()
-        }
-    )
+    print("\n❗ UA 블랙리스트 (curl)")
+    send_request("8.8.8.8", "curl/7.88.1", "*/*")
 
-    print("\n❗ 동일 IP 반복 요청 → IP 폭주 테스트")
-    for i in range(101):
-        send_request(
-            ip="7.7.7.7",
-            ua="Mozilla/5.0",
-            extra={
-                "req_count": i + 1,
-                "interval": 0.1,
-                "uri": "/",
-                "timestamp": time.time()
-            }
-        )
+    print("\n❗ 브라우저 UA + Accept 없음")
+    send_request("6.6.6.6", "Mozilla/5.0")       # Accept 헤더 미포함
+
+    # Stage-2: IP 폭주
+    print("\n❗ 동일 IP 반복 요청 (빈도 초과)")
+    for _ in range(101):                         # 100 + 1회 → 탐지
+        send_request("7.7.7.7", "Mozilla/5.0", "text/html")
         time.sleep(0.01)
-        
-def generate_random_test_cases(n: int = 50):
-    clear_rule_cache()
-    print(f"\n🧪 랜덤 테스트 케이스 {n}개 생성")
 
-    stats = {"rule": 0, "ml": 0, "normal": 0, "total": 0}
+    # Stage-3: 국가 차단
+    print("\n❗ 국가 차단 테스트 (RU)")
+    send_request("95.173.136.70", "Mozilla/5.0", "text/html")   # 러시아 IP 예시
 
-    for _ in range(n):
-        ip = f"{random.randint(1, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}"
-        ua = random.choice([
-            "Mozilla/5.0", "curl/7.88.1", "python-requests/2.25", "wget/1.20"
-        ])
-        uri = random.choice(["/", "/checkout", "/cart", "/index.html"])
-        req_count = random.randint(1, 150)
-        interval = round(random.expovariate(1/2), 2)
-        timestamp = time.time()
+    print("\n❗ 국가 차단 테스트 (CN)")
+    send_request("1.12.1.1", "Mozilla/5.0", "text/html")        # 중국 IP 예시
 
-        payload = {
-            "ip": ip,
-            "user_agent": ua,
-            "uri": uri,
-            "req_count": req_count,
-            "interval": interval,
-            "timestamp": timestamp
-        }
+    print("\n❗ TLS JA3 불일치 (브라우저 UA + curl JA3)")
+    send_request("5.5.5.5",
+                "Mozilla/5.0",
+                "text/html",
+                "cd08e31494f04d93a41a9e1dc943e07b")     # curl 해시
 
-        response = requests.post(API_URL, json=payload)
-        result = response.json()
-        method = result.get("method", "normal")
-        stats[method] += 1
-        stats["total"] += 1
+    print("\n❗ TLS JA3 블랙리스트 전용 (ZGrab 해시)")
+    send_request("4.4.4.4",
+                 "ZGrab/1.x",
+                 "*/*",
+                 "5d74ab0f9d9e3f4d1c6e89de2a78f638")
 
-        print(f"[{ip}] UA: {ua} → anomaly: {result['anomaly']} ({method})")
-        time.sleep(0.05)
 
-    print_summary(stats)
-
-def print_summary(stats):
-    print("\n랜덤 테스트 탐지 요약")
-    print("-" * 30)
-    print(f"총 요청 수        : {stats['total']}")
-    print(f"Rule 기반 탐지    : {stats['rule']}")
-    print(f"ML 기반 탐지      : {stats['ml']}")
-    print(f"정상 요청 (미탐지) : {stats['normal']}")
-    print("-" * 30)
-    
 if __name__ == "__main__":
     test_cases()
     generate_random_test_cases(30)

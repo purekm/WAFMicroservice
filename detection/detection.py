@@ -150,5 +150,6 @@ def detect_anomaly(data: dict) -> bool:
     if stage4_check_ja3(headers):         # ④ TLS JA3 블랙리스트 & 불일치
         return True
 
-    # (추가 스테이지가 있으면 이어서 …)
+    # (추가 스테이지가 있으면 이어서 ...)
     return False
+
