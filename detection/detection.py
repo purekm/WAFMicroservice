@@ -1,159 +1,128 @@
 """
 multi_stage_detection.py
 ────────────────────────
-FastAPI·Flask · Lambda 등 어디서든 import-해서 사용할 수 있는
-다단계(3-Stage) 룰 기반 이상 트래픽 탐지 모듈.
+다단계 룰 기반 L7 파이어월 (FastAPI · Flask · Lambda 호환)
 
 Stages
-  1. User-Agent / Accept 헤더 정합성 + UA 블랙리스트
-  2. IP별 요청 빈도(분당) 초과
-  3. GeoIP 국가 차단  (MaxMind GeoLite2-Country.mmdb 필요)
-
-사용 예
-  from multi_stage_detection import detect_anomaly
-  if detect_anomaly(event):  # event = dict(ip=..., headers=...)
-      block_request()
+  1. User‑Agent / Accept 정합성 + UA 블랙리스트
+  2. IP별 분당 요청 수 초과
+  3. GeoIP 국가 차단 (MaxMind GeoLite2‑Country.mmdb 필요)
+  4. TLS JA3 블랙리스트 & UA‑JA3 불일치
+  5. REST 화이트리스트 (경로·메서드 스키마)
+  6. GraphQL Depth / Complexity 한도
 """
-
 from __future__ import annotations
-import time
+import time, json, re
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import Dict
 import geoip2.database
+from graphql import parse, visit       # pip install graphql-core
 
-# ───────────────── 설정(상수) ────────────────────
-# Stage-1
-UA_BLACKLIST        = ("curl", "python-requests", "wget")
-BROWSER_UA_TOKENS   = ("mozilla", "chrome", "safari", "edge", "firefox")
+# ───────────── Stage‑1: UA/Accept ─────────────
+UA_BLACKLIST      = ("curl", "python-requests", "wget")
+BROWSER_UA_TOKENS = ("mozilla", "chrome", "safari", "edge", "firefox")
 
-# Stage-2
-WINDOW_SEC          = 60        # IP 관찰 창(초)
-IP_THRESHOLD        = 100       # IP 당 60초 허용 요청 수
-
-# Stage-3
-GEOIP_DB_PATH       = "data/GeoLite2-Country.mmdb"
-BLOCKED_COUNTRIES   = {"RU", "CN"}    # ISO-3166 Alpha-2 코드
-
-SUSPECT_JA3 = {
-    "5d74ab0f9d9e3f4d1c6e89d…",  # ZGrab
-    "cd08e31494f04d93a41a29…",  # curl 7.x
-}
-
-# ───────────────── 내부 상태 ─────────────────────
-_ip_stats: Dict[str, Dict[str, float | int]] = defaultdict(  # IP 카운터
-    lambda: {"count": 0, "start": 0.0}
-)
-
-# GeoIP 리더(지연 로딩)
-_geoip_reader = None
-
-
-# ───────────────── Stage-1: UA 검사 ───────────────
-def stage1_check_ua(headers: dict) -> bool:
-    """
-    블랙리스트 UA, 또는 브라우저 UA 같지만 Accept 헤더가 없는 경우 탐지.
-    """
-    # 헤더 키를 소문자로 정규화
-    h = {k.lower(): v for k, v in headers.items()}
+def stage1_check_ua(h: dict) -> bool:
     ua = h.get("user-agent", "").lower()
-
-    # 1-A. 블랙리스트
-    if any(bad in ua for bad in UA_BLACKLIST):
+    if any(b in ua for b in UA_BLACKLIST):
         return True
-
-    # 1-B. 브라우저 UA + Accept 없음 → 위조 의심
     if any(tok in ua for tok in BROWSER_UA_TOKENS) and "accept" not in h:
         return True
-
     return False
 
-
-# ───────────────── Stage-2: IP 빈도 ───────────────
+# ───────────── Stage‑2: IP 빈도 ─────────────
+WINDOW_SEC, IP_THRESHOLD = 60, 100
+_ip_stats: Dict[str, Dict[str, float | int]] = defaultdict(lambda: {"count": 0, "start": 0.0})
 def stage2_check_ip(ip: str, now: float) -> bool:
-    """
-    WINDOW_SEC 동안 IP별 요청 카운트가 IP_THRESHOLD 초과 시 탐지.
-    """
-    stat = _ip_stats[ip]
-    if now - stat["start"] > WINDOW_SEC:        # 새 윈도()
-        stat["count"] = 0
-        stat["start"] = now
-    stat["count"] += 1
-    return stat["count"] > IP_THRESHOLD
+    s = _ip_stats[ip]
+    if now - s["start"] > WINDOW_SEC:
+        s.update(count=0, start=now)
+    s["count"] += 1
+    return s["count"] > IP_THRESHOLD
 
-
-# ───────────────── Stage-3: 국가 차단 ────────────
-def _load_geoip_reader():
-    global _geoip_reader
-    if _geoip_reader is None:                  # 처음 호출 시 한 번만 로딩
-        import geoip2.database
-        _geoip_reader = geoip2.database.Reader(GEOIP_DB_PATH)
-    return _geoip_reader
-
-
-def stage3_check_country(ip: str) -> bool:
-    """
-    차단 목록 국가에서 온 IP면 True.
-    (DB 없거나 조회 실패 시 False = 통과)
-    """
+# ───────────── Stage‑3: 국가 차단 ─────────────
+GEOIP_DB_PATH, BLOCKED = "data/GeoLite2-Country.mmdb", {"RU", "CN"}
+_geo = None
+def stage3_country(ip: str) -> bool:
+    global _geo
     try:
-        reader = _load_geoip_reader()
-        country = reader.country(ip).country.iso_code  # 예: "KR"
+        _geo = _geo or geoip2.database.Reader(GEOIP_DB_PATH)
+        return _geo.country(ip).country.iso_code in BLOCKED
     except Exception:
         return False
-    return country in BLOCKED_COUNTRIES
 
-def stage4_check_ja3(headers: dict) -> bool:
-    ja3 = headers.get("x-ja3") or headers.get("cloudfront-viewer-ja3-fingerprint")
+# ───────────── Stage‑4: TLS JA3 ─────────────
+SUSPECT_JA3 = {
+    "cd08e31494f04d93a41a9e1dc943e07b",      # curl
+    "5d74ab0f9d9e3f4d1c6e89de2a78f638",      # ZGrab
+}
+def stage4_ja3(h: dict) -> bool:
+    ja3 = h.get("x-ja3") or h.get("cloudfront-viewer-ja3-fingerprint")
     if not ja3:
-        return False                      # TLS 없는 HTTP → 통과
-    if ja3 in SUSPECT_JA3:                # 블랙리스트
+        return False
+    if ja3 in SUSPECT_JA3:
         return True
-    # 브라우저 UA인데 JA3가 curl 패턴?  → 위조 가능성
-    ua = headers.get("user-agent", "").lower()
-    if "mozilla" in ua and ja3.startswith("cd08e3"):
+    if "mozilla" in h.get("user-agent", "").lower() and ja3.startswith("cd08e3"):
         return True
     return False
 
+# ───────────── Stage‑5: REST 스키마 ─────────────
+# OpenAPI JSON → 경로/메서드 화이트리스트 로딩
+REST_TABLE: list[tuple[re.Pattern, set[str]]] = []
+def _load_openapi(path="openapi.json"):
+    if REST_TABLE: return
+    spec = json.loads(Path(path).read_text())
+    pat = re.compile(r'{[^/]+}')
+    for p, item in spec["paths"].items():
+        REST_TABLE.append((re.compile('^'+pat.sub('[^/]+', p)+'$'),
+                           {m.lower() for m in item}))
+try: _load_openapi()
+except FileNotFoundError: pass          # 스키마 없으면 Stage‑5 생략
 
-# ───────── 상태 보존용 캐시 ─────────
-_ip_timestamps: Dict[str, deque] = defaultdict(deque)        # IP별 요청 시각
-_ip_uri_hits: Dict[str, Dict[str, deque]] = defaultdict(lambda: defaultdict(deque)) # 특정 IP 반복 여부 확인
+def stage5_rest(method: str, url_path: str) -> bool:
+    for rex, methods in REST_TABLE:
+        if rex.match(url_path):
+            return method not in methods
+    return bool(REST_TABLE)             # 스키마가 있으면 정의 외 경로 차단
 
-# ───────────────── 메인 탐지 함수 ────────────────
+# ───────────── Stage‑6: GraphQL 복잡도 ─────────────
+DEPTH_LIMIT, COMPLEX_LIMIT = 8, 1_000
+FIELD_WEIGHT = defaultdict(lambda: 5, id=1, name=2)
+
+def _depth_score(node, depth=1):
+    md, sc = depth, 0
+    sel_set = getattr(node, "selection_set", None)
+    if not sel_set: return md, sc
+    for sel in sel_set.selections:
+        cd, cs = _depth_score(sel, depth+1)
+        md = max(md, cd)
+        sc += FIELD_WEIGHT[sel.name.value] + cs
+    return md, sc
+
+def stage6_graphql(query: str) -> bool:
+    try:
+        ast = parse(query)
+    except Exception:
+        return True
+    depth, score = _depth_score(ast)
+    if "__schema" in query or "__type" in query:
+        return True
+    return depth > DEPTH_LIMIT or score > COMPLEX_LIMIT
+
+# ───────────── 메인 ─────────────
 def rule_detect(data: dict) -> bool:
-    """
-    Parameters
-    ----------
-    data : {
-        "ip": "1.2.3.4",                     # 필수
-        "headers": {...},                    # 필수 (User-Agent, Accept, X-JA3 …)
-        "timestamp": 1720140000.0 (opt)      # epoch, 기본 time.time()
-    }
+    ip   = data.get("ip", "")
+    h    = {k.lower(): v for k, v in (data.get("headers") or {}).items()}
+    now  = float(data.get("timestamp", time.time()))
+    path = data.get("path", "/")
+    mtd  = data.get("method", "get").lower()
+    gql  = data.get("graphql")          # GraphQL 요청이라면 스트링
 
-    Returns
-    -------
-    bool  True  → 이상 트래픽
-          False → 정상
-    """
-    # ───────────── 입력 파싱 ─────────────
-    ip        = data.get("ip", "")
-    raw_h     = data.get("headers") or {}
-    headers   = {k.lower(): v for k, v in raw_h.items()}   # ✅ 키 전부 소문자
-    now       = float(data.get("timestamp", time.time()))
-
-    # ───────────── 스테이지 호출 ─────────────
-    if stage1_check_ua(headers):          # ① UA / Accept 정합성
-        return True
-
-    if stage2_check_ip(ip, now):          # ② IP 빈도 초과
-        return True
-
-    if stage3_check_country(ip):          # ③ 국가 차단
-        return True
-
-    if stage4_check_ja3(headers):         # ④ TLS JA3 블랙리스트 & 불일치
-        return True
-
-    # (추가 스테이지가 있으면 이어서 ...)
+    if stage1_check_ua(h):       return True
+    if stage2_check_ip(ip, now): return True
+    if stage3_country(ip):       return True
+    if stage4_ja3(h):            return True
+    if REST_TABLE and stage5_rest(mtd, path): return True
+    if gql and stage6_graphql(gql):      return True
     return False
-
