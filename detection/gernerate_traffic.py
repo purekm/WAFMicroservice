@@ -84,7 +84,7 @@ with open("traffic_log.csv", "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["ip", "timestamp", "method", "path", "ua", "referer", "cookie", "accept_type"])
 
-    for i in range(5000):
+    for i in range(300):
         is_abnormal = (i % 10 == 0)  # 10% 확률로 비정상 샘플
 
         if is_abnormal:
@@ -108,4 +108,4 @@ with open("traffic_log.csv", "w", newline="") as f:
             timestamp = time.time()
 
         writer.writerow([ip, timestamp, method, uri, ua, referer, cookie, accept])
-        time.sleep(random.uniform(0.2, 0.5))
+        # time.sleep(random.uniform(0.2, 0.5))
