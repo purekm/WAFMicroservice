@@ -1,12 +1,11 @@
 import pandas as pd
 import numpy as np
 import joblib
-import pathlib
+import math
 from urllib.parse import urlparse
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import IsolationForest
-import math
 
 # ─── 데이터 로딩 ───
 df = pd.read_csv("traffic_log.csv").sort_values(["ip", "timestamp"])
@@ -36,29 +35,46 @@ def calculate_entropy(s):
 
 df["uri_entropy"] = df["path"].astype(str).apply(calculate_entropy)
 
-# ─── 인코딩 ───
+# ─── -999 방식 인코딩 함수 ───
 def safe_label_encode(encoder, value, unknown_value=-999):
     try:
         return encoder.transform([value])[0]
     except ValueError:
         return unknown_value
-    
-enc_accept = LabelEncoder()
-enc_accept.fit(df["accept_type"])
-df["accept_type"] = enc_accept.transform(df["accept_type"])
-joblib.dump(enc_accept, "enc_accept.pkl")
 
+# ─── max+1 방식 인코딩 함수 ───
+def encode_accept(value):
+    try:
+        return enc_accept.transform([value])[0]
+    except ValueError:
+        return len(enc_accept.classes_)
+
+# ─── method 인코딩 (LabelEncoder + -999 처리) ───
 enc_method = LabelEncoder()
 enc_method.fit(df["method"])
-df["method"] = enc_method.transform(df["method"])
+df["method"] = df["method"].apply(lambda x: safe_label_encode(enc_method, x))
 joblib.dump(enc_method, "enc_method.pkl")
 
+# ─── accept_type 인코딩 (max+1 방식) ───
+enc_accept = LabelEncoder()
+enc_accept.fit(df["accept_type"])
+df["accept_type"] = df["accept_type"].apply(encode_accept)
+joblib.dump(enc_accept, "enc_accept.pkl")
+
+# ─── referer_domain 인코딩 (상위 20개 + __OTHER__) ───
+top_20 = df["referer_domain"].value_counts().nlargest(20).index.tolist()
+df["referer_domain"] = df["referer_domain"].apply(lambda x: x if x in top_20 else "__OTHER__")
+
+# ★ 꼭 학습용 데이터에 '__OTHER__'이 포함되도록 보장
+if '__OTHER__' not in df['referer_domain'].values:
+    df.loc[df.index[0], 'referer_domain'] = '__OTHER__'
+    
 enc_referer = LabelEncoder()
 enc_referer.fit(df["referer_domain"])
 df["referer_domain"] = enc_referer.transform(df["referer_domain"])
 joblib.dump(enc_referer, "enc_referer.pkl")
 
-# ─── 최종 특징 목록 ───
+# ─── 특징 목록 ───
 FEATURES = [
     "req_count",
     "interval",

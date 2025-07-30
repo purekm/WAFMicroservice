@@ -11,7 +11,8 @@ referers = [
     "https://ad.example.com/?utm_source=naver",
     "https://shopping.example.com/deals",
     "https://partner.site.com/ref?id=xyz",
-    "https://example.com/product/1"
+    "https://example.com/product/1",
+    "__OTHER__"
 ]
 
 cookies = [
@@ -76,34 +77,35 @@ accept_type = [
     "application/json;q=0.9,*/*;q=0.8",
     "text/html;q=0.8,application/json;q=0.2"
 ]
+method_type = ["GET","POST","PUT","DELETE","HEAD","PATCH"]
 
 
 with open("traffic_log.csv", "w", newline="") as f:
     writer = csv.writer(f)
-    writer.writerow(["ip", "timestamp", "method", "path", "ua", "referer", "cookie","accept_type"])
-    for i in range(300):
-        ip = f"192.168.0.{random.randint(1, 200)}"
-        ua = random.choice(ua_list)
-        data = {
-            "ip": ip,
-            "user_agent": ua,
-            "referer": random.choice(referers),
-            "cookie": random.choice(cookies),
-            "method": random.choice(["GET", "POST"]),
-            "uri": random.choice(paths),
-            "accept_type" : random.choice(accept_type),
-            "timestamp": time.time()  # 추후 time_diff 계산 가능
-        }
-        writer.writerow([
-            data["ip"],
-            data["timestamp"],
-            data["method"],
-            data["uri"],
-            data["user_agent"],
-            data["referer"],
-            data["cookie"],
-            data["accept_type"]
-        ])
-        # res = requests.post("http://127.0.0.1:8000/detect", json=data)
-        # print(f"[{i}] {ip} {ua} =>", res.json())
-        time.sleep(random.uniform(0.3, 2.5))
+    writer.writerow(["ip", "timestamp", "method", "path", "ua", "referer", "cookie", "accept_type"])
+
+    for i in range(5000):
+        is_abnormal = (i % 10 == 0)  # 10% 확률로 비정상 샘플
+
+        if is_abnormal:
+            # 🚨 비정상 샘플: 매우 짧은 간격 + 비정상 method + 이상한 referer 등
+            ip = f"10.0.0.{random.randint(100, 200)}"
+            method = random.choice(["MAKE", "INVALID", "TRACE"])  # 정상에 없는 것
+            referer = random.choice(["", "localhost", "http://evil.site", "http://malicious.co"])
+            cookie = ";".join([f"k{i}=v{i}" for i in range(random.randint(20, 100))])  # 과도한 쿠키
+            uri = "/a/b/c/d/e/f/g/h/i/j"  # 매우 깊은 경로
+            ua = random.choice(["curl/7.68.0", "python-requests/2.31.0"])
+            accept = random.choice(["", "text/Google", "application/zzz"])
+            timestamp = time.time()
+        else:
+            ip = f"192.168.0.{random.randint(1, 100)}"
+            method = random.choice(method_type)
+            referer = random.choice(referers)
+            cookie = random.choice(cookies)
+            uri = random.choice(paths)
+            ua = random.choice(ua_list)
+            accept = random.choice(accept_type)
+            timestamp = time.time()
+
+        writer.writerow([ip, timestamp, method, uri, ua, referer, cookie, accept])
+        time.sleep(random.uniform(0.2, 0.5))

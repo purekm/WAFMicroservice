@@ -16,22 +16,11 @@ enc_method = joblib.load("enc_method.pkl")
 def generate_uri(depth):
     segments = [f"section{i}" for i in range(1, depth + 1)]
     return "/" + "/".join(segments) if segments else "/"
-# ─── 라벨 인코딩 예외처리 ───
-def safe_label_encode(encoder, value, unknown_value=-999):
-    try:
-        return encoder.transform([value])[0]
-    except ValueError:
-        return unknown_value
-    
-# ─── 요청 전송 함수 (정적/랜덤 테스트용) ───
+
+# ─── 요청 전송 함수 ───
 def send_request_ml(row, ip="192.168.0.100"):
     uri = generate_uri(int(row["path_depth"]))
     cookie = "; ".join([f"key{i}=val{i}" for i in range(int(row["cookie_count"]))])
-
-    # 인코딩 적용
-    encoded_accept = safe_label_encode(enc_accept, row["accept_type"])
-    encoded_referer = safe_label_encode(enc_referer, row["referer_domain"])
-    encoded_method = safe_label_encode(enc_method, row["method"])
 
     headers = {
         "User-Agent": "Mozilla/5.0",
@@ -47,11 +36,10 @@ def send_request_ml(row, ip="192.168.0.100"):
         "req_count": int(row["req_count"]),
         "interval": float(np.log1p(float(row["interval"]))),
         "uri": uri,
-        "accept_type": int(encoded_accept),
-        "referer_domain": int(encoded_referer),
-        "method": int(encoded_method)
+        "accept_type": row["accept_type"],
+        "referer_domain": row["referer_domain"],
+        "method": row["method"]
     }
-
 
     try:
         resp = requests.post(API_URL, json=payload, timeout=3)
@@ -63,11 +51,11 @@ def send_request_ml(row, ip="192.168.0.100"):
 # ─── 테스트 케이스 (정적) ───
 test_cases = pd.DataFrame([
     { # TC1 : 높은 빈도로 요청하는 봇 탐지하기 위한 케이스
-        "req_count": 100000,
+        "req_count": 1000000,
         "interval": 0.0001,
         "path_depth": 1,
         "cookie_count": 1,
-        "referer_domain": "google.com",
+        "referer_domain": "dsldam.com",
         "method": "POST",
         "accept_type": "application/json"
     },
@@ -77,7 +65,7 @@ test_cases = pd.DataFrame([
         "path_depth": 2,
         "cookie_count": 2,
         "referer_domain": "localhost",
-        "method": "DELETE",
+        "method": "MAKE",
         "accept_type": "*/*"
     },
     { # TC3 : path_depth가 긴 deep url 탐지하기 위한 케이스
@@ -89,20 +77,20 @@ test_cases = pd.DataFrame([
         "method": "POST",
         "accept_type": "application/xml"
     },
-    { # TC 4 : 쿠기도 없고, referer도 없고, accept type도 없는 케이스 
+    { # TC 4 : 쿠기도 없고, method도 없고, referer도 없고, accept type도 없는 케이스 
         "req_count": 10,
         "interval": 1.0,
         "path_depth": 2,
-        "cookie_count": 0,
+        "cookie_count": 789651,
         "referer_domain": "",
-        "method": "GET",
+        "method": "",
         "accept_type": ""
     },
     { # TC5 : 비정상적으로 많은 쿠키 
         "req_count": 70,
         "interval": 0.3,
         "path_depth": 3,
-        "cookie_count": 20,
+        "cookie_count": 5045,
         "referer_domain": "ad.example.com",
         "method": "POST",
         "accept_type": "application/json"
