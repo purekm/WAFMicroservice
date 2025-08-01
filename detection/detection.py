@@ -81,7 +81,7 @@ SCORES = {
     "has_client_hints":       -8,
     "has_cookie_same_site":   -10,
 }
-FINAL_SCORE_THRESHOLD = 40
+FINAL_SCORE_THRESHOLD = 77
 MAX_NEGATIVE_BONUS = 20   # 음수 가중치 한계
 
 # ───────────── 내부 상태 ─────────────

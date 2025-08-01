@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import joblib
 
-API_URL = "http://localhost:8000/detect"
+API_URL = "http://localhost:5000/detect"
 
 # ─── 학습 때 사용한 인코더 불러오기 ───
 enc_accept = joblib.load("enc_accept.pkl")
