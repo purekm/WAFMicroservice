@@ -14,5 +14,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 전체 코드 복사
 COPY . .
 
-# Flask 서버 실행 (host=0.0.0.0 → 외부에서 접근 가능)
-CMD ["uvicorn", "detection.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# FAST API 서버 실행 (host=0.0.0.0 → 외부에서 접근 가능)
+CMD ["uvicorn", "detection.app:app", "--host", "0.0.0.0", "--port", "5000"]
