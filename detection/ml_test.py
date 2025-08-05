@@ -19,22 +19,23 @@ def generate_uri(depth):
 
 # ─── 요청 전송 함수 ───
 def send_request_ml(row, ip="192.168.0.100"):
+    # row의 NaN 값을 None으로 변환
+    row = row.where(pd.notna(row), None)
+
     uri = generate_uri(int(row["path_depth"]))
-    cookie = "; ".join([f"key{i}=val{i}" for i in range(int(row["cookie_count"]))])
+    authorization = row["authorization"] if row["authorization"] else ""
 
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": row["accept_type"],
         "Referer": f"https://{row['referer_domain']}/search" if row["referer_domain"] else "",
-        "Cookie": cookie
+        "Authorization": authorization
     }
 
     payload = {
         "ip": ip,
         "timestamp": float(time.time()),
         "headers": headers,
-        "req_count": int(row["req_count"]),
-        "interval": float(np.log1p(float(row["interval"]))),
         "uri": uri,
         "accept_type": row["accept_type"],
         "referer_domain": row["referer_domain"],
@@ -50,47 +51,38 @@ def send_request_ml(row, ip="192.168.0.100"):
 
 # ─── 테스트 케이스 (정적) ───
 test_cases = pd.DataFrame([
-    { # TC1 : 높은 빈도로 요청하는 봇 탐지하기 위한 케이스
-        "req_count": 1000000,
-        "interval": 0.0001,
-        "path_depth": 1,
-        "cookie_count": 1,
+    { # TC1 : 비정상적으로 깊은 경로 + 유효하지 않은 토큰
+        "path_depth": 15,
+        "authorization": "Bearer invalid-token",
         "referer_domain": "dsldam.com",
         "method": "POST",
         "accept_type": "application/json"
     },
-    { # TC2 : 내부 요청처럼 위장한거 탐지하기 위한 케이스
-        "req_count": 5,
-        "interval": 1.2,
+    { # TC2 : 내부 요청처럼 위장 + 비정상 메소드 + 정상 토큰
         "path_depth": 2,
-        "cookie_count": 2,
+        "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
         "referer_domain": "localhost",
         "method": "MAKE",
         "accept_type": "*/*"
     },
-    { # TC3 : path_depth가 긴 deep url 탐지하기 위한 케이스
-        "req_count": 80,
-        "interval": 0.5,
+    { # TC3 : path_depth가 긴 deep url + 정상 토큰
         "path_depth": 6,
-        "cookie_count": 3,
+        "authorization": "Basic dXNlcjpwYXNz",
         "referer_domain": "ad.example.com",
         "method": "POST",
         "accept_type": "application/xml"
     },
-    { # TC 4 : 쿠기도 없고, method도 없고, referer도 없고, accept type도 없는 케이스 
-        "req_count": 10,
-        "interval": 1.0,
+    { # TC 4 : 인증 헤더 없고, method도 없고, referer도 없고, accept type도 없는 케이스 
         "path_depth": 2,
-        "cookie_count": 789651,
+        "authorization": "",
         "referer_domain": "",
         "method": "",
         "accept_type": ""
     },
-    { # TC5 : 비정상적으로 많은 쿠키 
-        "req_count": 70,
-        "interval": 0.3,
+    { # TC5 : 비정상적인 토큰 (ML은 토큰 유효성 검증은 안하지만, 다른 패턴으로 탐지 가능)
         "path_depth": 3,
-        "cookie_count": 5045,
+        "has_authorization": 1,
+        "authorization": "Bearer invalid-token-string",
         "referer_domain": "ad.example.com",
         "method": "POST",
         "accept_type": "application/json"
@@ -98,7 +90,7 @@ test_cases = pd.DataFrame([
 ])
 ## referer 이 localhost이고 나머지가 정상이면, 정상요청이라고 함
 
-print("📦 [정적 테스트 케이스 실행]")
+print("[정적 테스트 케이스 실행]")
 for _, row in test_cases.iterrows():
     send_request_ml(row)
 
@@ -109,21 +101,20 @@ def generate_random_test_data(n=10):
     domains_suspicious = ["", "localhost", "ad.example.com", "malicious.site"]
     accept_pool = enc_accept.classes_.tolist()
     method_pool = enc_method.classes_.tolist()
+    auth_pool = ["Bearer valid-token", "", "Basic dXNlcjpwYXNz"]
 
     data = []
     for _ in range(n):
         is_abnormal = random.random() < 0.2
         data.append({
-            "req_count": random.randint(50, 150) if is_abnormal else random.randint(1, 20),
-            "interval": round(random.uniform(0.01, 0.1), 3) if is_abnormal else round(random.uniform(0.5, 2.5), 2),
             "path_depth": random.randint(5, 10) if is_abnormal else random.randint(1, 3),
-            "cookie_count": random.randint(6, 20) if is_abnormal else random.randint(1, 4),
+            "authorization": random.choice(auth_pool),
             "referer_domain": random.choice(domains_suspicious if is_abnormal else domains_normal),
             "method": random.choice(method_pool),
             "accept_type": random.choice(accept_pool)
         })
     return pd.DataFrame(data)
 
-print("\n🎲 [랜덤 트래픽 테스트 실행]")
+print("\n[랜덤 트래픽 테스트 실행]")
 for _, row in generate_random_test_data(10).iterrows():
     send_request_ml(row)

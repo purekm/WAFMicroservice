@@ -1,6 +1,7 @@
+import uvicorn
 from fastapi import FastAPI, Request
-from .detection import rule_detect
-from .ml_detection import ml_detect  # ML 탐지기 (예: IsolationForest 등)
+from detection import rule_detect
+from ml_detection import ml_detect  # ML 탐지기 (예: IsolationForest 등)
 
 app = FastAPI()
 
@@ -34,3 +35,6 @@ async def detect(request: Request):
 @app.get("/")
 def root():
     return {"message": "WAF Microservice is running"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=5000)
