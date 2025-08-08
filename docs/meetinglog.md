@@ -310,6 +310,79 @@ EDoS 데이터셋은 없으니까 유사한 DDoS 데이터셋을 사용하면 �
 | **`method`**                   | HTTP 요청 방식                   | - GET/POST가 일반적<br>- EDoS에서 **반복 POST** 또는 드문 PUT/DELETE 요청은 공격 가능성↑                                                        |
 | **`accept_type`**              | 클라이언트가 원하는 응답 형식             | - 일반 사용자는 `text/html`, `application/json` 선호<br>- `*/*` 또는 보기 드문 값은 **자동화 봇**일 가능성↑                                         |
 
+## 8월 16일
+#### 대응 및 이후의 부분은 어떻게 하는게 좋을까? 
+
+대응
+
+1. 요청 발생: 사용자의 모든 요청은 실제 서비스가 아닌 API Gateway로 먼저 들어옵니다.
+2. WAF 연동 (탐지): API Gateway는 받은 요청을 그대로 WAF(현재 제작하신 탐지 서비스)의 `/detect` 
+      엔드포인트로 전달하여 공격 여부를 검사합니다.
+3. 정상 트래픽 처리: WAF가 "정상"이라고 판단하면({"anomaly": false}), API Gateway는 해당 요청을 원래
+      목적지였던 실제 서비스(API 서버)로 전달하고 그 결과를 사용자에게 반환합니다.
+4. 공격 트래픽 처리 (대응): WAF가 "공격"이라고 판단하면({"anomaly": true}), API Gateway는 요청을 실제
+      서비스로 보내지 않고 즉시 연결을 끊거나 에러 페이지(HTTP 403 Forbidden)를 반환합니다.
+
+API Gateway + EKS를 사용하려고 했더니.. 예상하지 못한 사용할 게 많음.. 고정 비용이 만만치 않을 것 같은?
+EKS에서 기본 controlplane만 유지해도 월 72달러 라고 하네..
+그래서 추가된 ALB + Fargate 버전
+
+ALB + Fargate 버전 
+[시나리오]
+   * WAF 서비스: waf-service (Fargate에서 실행)
+   * 실제 애플리케이션: app-service (Fargate에서 실행)
+   * ALB 주소: my-waf.com
+
+   ![alt text](image-4.png)
+
+   1. 요청 시작: 사용자가 my-waf.com/some/path(예시)로 접속합니다. 이 요청은 먼저 ALB에 도달합니다.
+
+   2. ALB의 라우팅: ALB는 설정된 규칙을 확인합니다. 우리는 "모든(`*`) 경로로 들어오는 요청은 
+      `waf-target-group`으로 보내라" 는 규칙을 설정해 둡니다. waf-target-group은 waf-service 컨테이너들의
+      목록을 가지고 있습니다.
+
+   3. 요청 전달: ALB는 waf-target-group에 등록된 건강한 waf-service 컨테이너 중 하나를 골라 요청을 전달합니다.
+
+   4. WAF 탐지 로직 실행: waf-service 컨테이너는 받은 요청을 가지고, 작성하신 detection.py와 ml_detection.py 로직을 실행하여 공격 여부를 판단합니다.
+
+   5. 판단 및 분기:
+       * 5a. 공격일 경우 (대응): WAF 서비스는 즉시 HTTP 403 Forbidden 응답을 생성하여 ALB에게 돌려줍니다.
+         ALB는 이 응답을 그대로 사용자에게 전달하고, 요청 처리는 여기서 끝납니다. 실제 서비스는 아무런 
+         영향을 받지 않습니다.
+       * 5b. 정상일 경우 (프록시): WAF 서비스는 이제 리버스 프록시(Reverse Proxy) 역할을 해야 합니다.
+
+   6. 내부 프록시: waf-service는 받은 요청(헤더, 본문 등)을 거의 그대로 복사하여, VPC 내부 네트워크를 통해
+      app-service의 내부 주소(예: http://app-service.internal:8080)로 새로운 요청을 보냅니다.
+
+   7. 실제 서비스 처리: app-service 컨테이너는 waf-service로부터 받은 요청을 처리하고, 그 결과를 다시
+      waf-service에게 응답합니다.
+
+   8. 최종 응답: waf-service는 app-service로부터 받은 응답을 그대로 ALB에게 전달하고, ALB는 이 최종 응답을
+      사용자에게 보여줍니다.
+
+  구현을 위한 단계 (Action Plan)
+
+  이 아키텍처를 구현하기 위해 필요한 작업은 다음과 같습니다.
+
+   1. 애플리케이션 코드 수정:
+       * app.py 또는 별도의 responder.py에 리버스 프록시 기능을 추가해야 합니다.
+       * 정상 트래픽일 때, 환경변수(BACKEND_URL) 등으로 주입된 실제 서비스의 주소로 요청을 전달하는 코드를
+         작성합니다. (Python httpx 라이브러리 추천)
+
+   2. Dockerfile 작성:
+       * 수정된 Python 애플리케이션을 실행하는 Dockerfile을 완성합니다.
+
+   3. AWS 설정 (웹 콘솔 또는 IaC 사용):
+       * ECS Task Definition 생성: WAF와 App 서비스에 대한 "업무 매뉴얼"을 각각 작성합니다. (사용할 Docker
+         이미지, CPU/메모리 할당량 등)
+       * ALB 및 Target Group 생성:
+           * 인터넷과 연결되는 ALB를 하나 생성합니다.
+           * waf-target-group과 app-target-group을 만듭니다. (하지만 초기에는 app-target-group을 ALB에 직접
+             연결하지 않습니다.)
+       * ECS Service 생성:
+           * 작성한 Task Definition과 Target Group을 사용하여 waf-service와 app-service를 생성합니다. 이
+             과정에서 Fargate가 컨테이너들을 실행시킵니다.
+       * ALB 리스너 규칙 설정: ALB의 기본 규칙이 waf-target-group을 향하도록 설정합니다.
 
 
 
