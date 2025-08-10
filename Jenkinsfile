@@ -11,8 +11,9 @@ pipeline {
 
         stage('Run Services with Docker Compose') {
             steps {
-                echo " Docker Compose로 모든 서비스 시작 중..."
-                sh "docker-compose up --build -d"
+                script {
+                    dockerCompose.up(build: true, detached: true)
+                }
             }
         }
 
@@ -28,8 +29,10 @@ pipeline {
     }
     post {
         always {
-            echo " 모든 컨테이너 정리 중..."
-            sh "docker-compose down --volumes"
+            script {
+                echo " 모든 컨테이너 정리 중..."
+                dockerCompose.down(volumes: true)
+            }
         }
         success {
             script {
