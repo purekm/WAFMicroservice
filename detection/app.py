@@ -1,9 +1,12 @@
 import uvicorn
 from fastapi import FastAPI, Request
 from detection import rule_detect
-from ml_detection import ml_detect  # ML 탐지기 (예: IsolationForest 등)
+from ml_detection import ml_detect
+import httpx
 
 app = FastAPI()
+
+RESPONDER_URL = "http://127.0.0.1:8000/block"  # Docker-compose 또는 K8s 환경에서는 서비스 이름으로 통신
 
 from fastapi.responses import JSONResponse
 
@@ -11,15 +14,29 @@ from fastapi.responses import JSONResponse
 async def detect(request: Request):
     try:
         data = await request.json()
+        # 테스트 데이터에 명시된 IP를 우선 사용하고, 없으면 요청을 보낸 클라이언트의 IP를 사용
+        client_ip = data.get("ip", request.client.host)
 
         # 1단계: 룰 기반 탐지
         if rule_detect(data):
-            print("[RULE] 탐지됨!")
+            print(f"[RULE] 탐지됨! IP: {client_ip}")
+            # Responder에 차단 요청
+            async with httpx.AsyncClient() as client:
+                await client.post(RESPONDER_URL, json={
+                    "ip_address": client_ip,
+                    "reason": "Rule-based detection"
+                })
             return {"anomaly": True, "method": "rule"}
 
         # 2단계: ML 기반 탐지
         if ml_detect(data):
-            print("[ML] 탐지됨!")
+            print(f"[ML] 탐지됨! IP: {client_ip}")
+            # Responder에 차단 요청
+            async with httpx.AsyncClient() as client:
+                await client.post(RESPONDER_URL, json={
+                    "ip_address": client_ip,
+                    "reason": "ML-based detection"
+                })
             return {"anomaly": True, "method": "ml"}
 
         return {"anomaly": False, "method": "normal"}

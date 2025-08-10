@@ -98,7 +98,7 @@ def test_stateful_ml_cases():
     else:
         print_result(test_ip_2, "경로 스캔 (탐지 실패)", {"anomaly": False}, payload)
 
-
+        
 def run_random_tests(n: int = 50):
     """무작위 요청을 생성하여 시스템을 테스트합니다."""
     print(f"\n--- 무작위 테스트 ({n}회) ---")
