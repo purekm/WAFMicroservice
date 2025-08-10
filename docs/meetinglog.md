@@ -310,7 +310,7 @@ EDoS 데이터셋은 없으니까 유사한 DDoS 데이터셋을 사용하면 �
 | **`method`**                   | HTTP 요청 방식                   | - GET/POST가 일반적<br>- EDoS에서 **반복 POST** 또는 드문 PUT/DELETE 요청은 공격 가능성↑                                                        |
 | **`accept_type`**              | 클라이언트가 원하는 응답 형식             | - 일반 사용자는 `text/html`, `application/json` 선호<br>- `*/*` 또는 보기 드문 값은 **자동화 봇**일 가능성↑                                         |
 
-## 8월 16일
+## 8월 6일
 #### 대응 및 이후의 부분은 어떻게 하는게 좋을까? 
 
 대응
@@ -384,6 +384,10 @@ ALB + Fargate 버전
              과정에서 Fargate가 컨테이너들을 실행시킵니다.
        * ALB 리스너 규칙 설정: ALB의 기본 규칙이 waf-target-group을 향하도록 설정합니다.
 
+## 8월 11일
+#### 컨테이너 관리
+원래는 detection 컨테이너만 만들다보니 루트 디렉토리에 dockerfile 및 requirements를 사용했으나, responder 컨테이너를 추가하게 되어 디렉토리 구조 변경
+각 폴더에 dockerfile과 requirements 이동 및 그에 맞게 파일 수정
 
 
 
