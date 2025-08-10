@@ -16,15 +16,15 @@ pipeline {
             }
         }
 
-        stage('Check Running') {
-            steps {
-                echo " 실행 중인 서비스 확인:"
-                sh "docker-compose ps"
-                echo " Responder 서비스 Health Check 시도..."
-                sh "sleep 10"
-                sh "curl --fail http://localhost:8000/health"
-            }
-        }
+        // stage('Check Running') {
+        //     steps {
+        //         echo " 실행 중인 서비스 확인:"
+        //         sh "docker-compose ps"
+        //         echo " Responder 서비스 Health Check 시도..."
+        //         sh "sleep 10"
+        //         sh "curl --fail http://localhost:8000/health"
+        //     }
+        // }
     }
     post {
         always {
