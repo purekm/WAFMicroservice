@@ -387,7 +387,7 @@ ALB + Fargate 버전
 ## 8월 11일
 #### 컨테이너 관리
 원래는 detection 컨테이너만 만들다보니 루트 디렉토리에 dockerfile 및 requirements를 사용했으나, responder 컨테이너를 추가하게 되어 디렉토리 구조 변경
-각 폴더에 dockerfile과 requirements 이동 및 그에 맞게 파일 수정
+각 폴더에 dockerfile과 requirements 이동 및 그에 맞게 파일 수정 ver 1
 
 
 
