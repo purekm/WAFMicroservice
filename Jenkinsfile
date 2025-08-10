@@ -27,10 +27,6 @@ pipeline {
         // }
     }
     post {
-        always {
-            echo " 모든 컨테이너 정리 중..."
-            sh "docker-compose down --volumes"
-        }
         success {
             script {
                 withCredentials([string(credentialsId: 'Discord_Webhook', variable: 'DISCORD_URL')]) {
