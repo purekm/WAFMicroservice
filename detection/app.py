@@ -6,7 +6,11 @@ import httpx
 
 app = FastAPI()
 
-RESPONDER_URL = "http://127.0.0.1:8000/block"  # Docker-compose 또는 K8s 환경에서는 서비스 이름으로 통신
+import os
+
+# 환경 변수에서 Responder 서비스의 주소를 읽어옵니다.
+# 만약 환경 변수가 없으면, 로컬 테스트를 위해 기본값으로 localhost를 사용합니다.
+RESPONDER_URL = os.getenv("RESPONDER_URL", "http://127.0.0.1:8000/block")
 
 from fastapi.responses import JSONResponse
 

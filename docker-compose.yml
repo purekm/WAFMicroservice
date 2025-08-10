@@ -25,3 +25,6 @@ services:
     container_name: waf_detection
     ports:
       - "5000:5000"
+    environment:
+      # detection 서비스에 Responder의 주소를 알려줍니다.
+      - RESPONDER_URL=http://responder:8000/block
