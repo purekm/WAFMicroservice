@@ -3,7 +3,7 @@ version: '3.8'
 services:
   redis:
     image: redis:7-alpine
-    container_name: waf_redis
+    # container_name: waf_redis
     command: redis-server --save 60 1 --loglevel warning
     volumes:
       - ./redis-data:/data
@@ -12,7 +12,8 @@ services:
 
   responder:
     build: ./responder
-    container_name: waf_responder
+    # container_name: waf_responder
+    image: waf-responder:latest 
     ports:
       - "8000:8000"
     environment:
@@ -22,7 +23,8 @@ services:
 
   detection:
     build: ./detection
-    container_name: waf_detection
+    # container_name: waf_detection
+    image: waf-detection:latest
     ports:
       - "5000:5000"
     environment:
