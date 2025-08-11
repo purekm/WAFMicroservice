@@ -9,7 +9,7 @@ from pydantic import BaseModel
 # 환경 변수가 없으면 기본값으로 'redis'를 사용합니다.
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = 6379
-BLACKLIST_SET_KEY = "ip_blacklist" # Redis에서 사용할 Set의 키 이름
+BLACKLIST_EXPIRATION_SECONDS = 300  # 5분
 
 try:
     # decode_responses=True: Redis에서 받은 응답을 자동으로 UTF-8 문자열로 변환합니다.
@@ -20,7 +20,7 @@ try:
         decode_responses=True,
         socket_connect_timeout=5
     )
-    redis_client.ping() # 연결 테스트
+    redis_client.ping()  # 연결 테스트
     print(f"✅ Successfully connected to Redis at {REDIS_HOST}")
 except redis.exceptions.ConnectionError as e:
     print(f"❌ Error connecting to Redis: {e}")
@@ -34,24 +34,29 @@ class BlockRequest(BaseModel):
 app = FastAPI(title="WAF Responder Service")
 
 # --- API 엔드포인트 구현 ---
-@app.post("/block", summary="Block an IP address")
+@app.post("/block", summary="Block an IP address with a time limit")
 def block_ip(request: BlockRequest):
-    """특정 IP를 블랙리스트(Set)에 추가합니다."""
+    """특정 IP를 주어진 시간(초) 동안 블랙리스트에 추가합니다."""
     if not redis_client:
         raise HTTPException(status_code=503, detail="Redis is not available")
+
+    key = f"blacklist:{request.ip}"
+    # SET with EX: 키에 값을 저장하고 만료 시간을 초 단위로 설정합니다.
+    # 키가 이미 존재하면 값을 덮어쓰고 만료 시간도 새로 설정합니다.
+    result = redis_client.set(key, "blocked", ex=BLACKLIST_EXPIRATION_SECONDS)
     
-    # SADD: Set에 멤버를 추가. 이미 있으면 아무 변화 없음. 1을 반환하면 추가 성공, 0은 이미 있었음을 의미.
-    added_count = redis_client.sadd(BLACKLIST_SET_KEY, request.ip)
-    return {"status": "success", "ip": request.ip, "is_newly_blocked": bool(added_count)}
+    return {"status": "success", "ip": request.ip, "ttl_seconds": BLACKLIST_EXPIRATION_SECONDS}
 
 @app.post("/unblock", summary="Unblock an IP address")
 def unblock_ip(request: BlockRequest):
-    """특정 IP를 블랙리스트(Set)에서 제거합니다."""
+    """특정 IP를 블랙리스트에서 즉시 제거합니다."""
     if not redis_client:
         raise HTTPException(status_code=503, detail="Redis is not available")
 
-    # SREM: Set에서 특정 멤버를 제거. 1을 반환하면 제거 성공, 0은 원래 없었음을 의미.
-    removed_count = redis_client.srem(BLACKLIST_SET_KEY, request.ip)
+    key = f"blacklist:{request.ip}"
+    # DEL: 키를 삭제합니다. 삭제 성공 시 1, 키가 없을 경우 0을 반환합니다.
+    removed_count = redis_client.delete(key)
+    
     if removed_count > 0:
         return {"status": "success", "ip": request.ip, "unblocked": True}
     else:
@@ -59,13 +64,15 @@ def unblock_ip(request: BlockRequest):
 
 @app.get("/is_blocked/{ip}", summary="Check if an IP is blocked")
 def is_ip_blocked(ip: str):
-    """특정 IP가 블랙리스트(Set)에 있는지 확인합니다."""
+    """특정 IP가 블랙리스트에 있는지 확인합니다."""
     if not redis_client:
         raise HTTPException(status_code=503, detail="Redis is not available")
 
-    # SISMEMBER: Set에 특정 멤버가 존재하는지 확인 (True/False 반환)
-    is_member = redis_client.sismember(BLACKLIST_SET_KEY, ip)
-    return {"ip": ip, "is_blocked": is_member}
+    key = f"blacklist:{ip}"
+    # EXISTS: 키가 존재하는지 확인합니다. (1: 존재, 0: 미존재)
+    is_blocked = redis_client.exists(key)
+    
+    return {"ip": ip, "is_blocked": bool(is_blocked)}
 
 @app.get("/health", summary="Health Check")
 def health_check():
