@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: detection
-        image: waf-detection:latest # <-- 중요: 실제 이미지 경로로 변경하세요
+        image: waf-detection # <-- 중요: 실제 이미지 경로로 변경하세요
         ports:
         - containerPort: 5000
         env:

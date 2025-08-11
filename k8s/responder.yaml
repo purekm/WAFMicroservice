@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: responder
-        image: waf-responder:latest # <-- 중요: 실제 이미지 경로로 변경하세요
+        image: waf-responder # <-- 중요: 실제 이미지 경로로 변경하세요
         ports:
         - containerPort: 8000
         env:
