@@ -98,21 +98,51 @@ def test_stateful_ml_cases():
     else:
         print_result(test_ip_2, "경로 스캔 (탐지 실패)", {"anomaly": False}, payload)
 
+def generate_public_ip():
+    """사설/예약 대역을 피해서 대략적인 퍼블릭 IP 생성"""
+    while True:
+        a = random.randint(1, 223)     # 224~는 멀티캐스트 등 제외
+        b = random.randint(0, 255)
+        c = random.randint(0, 255)
+        d = random.randint(1, 254)     # .0, .255 회피
+
+        # 사설/예약/루프백/링크로컬 등 제외
+        if a == 10:                       # 10.0.0.0/8
+            continue
+        if a == 127:                      # 127.0.0.0/8
+            continue
+        if a == 172 and 16 <= b <= 31:    # 172.16.0.0/12
+            continue
+        if a == 192 and b == 168:         # 192.168.0.0/16
+            continue
+        if a == 169 and b == 254:         # 169.254.0.0/16
+            continue
+        if a == 100 and 64 <= b <= 127:   # 100.64.0.0/10
+            continue
+        if a == 192 and b == 0 and c == 2:    # 192.0.2.0/24 TEST-NET-1
+            continue
+        if a == 198 and b in (18,19):     # 198.18.0.0/15
+            continue
+        if a == 192 and b == 88 and c == 99:  # 192.88.99.0/24
+            continue
+        return f"{a}.{b}.{c}.{d}"
         
 def run_random_tests(n: int = 50):
-    """무작위 요청을 생성하여 시스템을 테스트합니다."""
+    """무작위 요청을 생성하여 시스템을 테스트 (룰/ML 모두 랜덤 IP).
+       ML은 '랜덤으로 만든 상태풀'에서 반복 사용 -> 상태 기반 탐지 신호 확보"""
     print(f"\n--- 무작위 테스트 ({n}회) ---")
     stats = {"rule": 0, "ml": 0, "normal": 0, "error": 0, "total": n}
-    
-    # 상태를 유지할 IP 풀
-    stateful_ips = [f"172.16.1.{i}" for i in range(5)] 
 
+    # 1) 상태 유지할 '랜덤 퍼블릭 IP' 풀을 먼저 만들어 둠 (예: 40개)
+    stateful_ips = [generate_public_ip() for _ in range(40)]
+
+    # 2) 룰 공격도 매번 랜덤 IP 사용 (원하면 블랙리스트 국가지역 풀 따로 둘 수도)
+    #    여기선 UA=sqlmap 만으로 룰이 트리거된다고 가정
     for i in range(n):
         traffic_type = random.choices(['normal', 'rule_attack', 'ml_attack'], [0.5, 0.25, 0.25])[0]
 
-        # 기본 페이로드
         payload = {
-            "ip": f"192.168.1.{random.randint(1, 254)}",
+            "ip": generate_public_ip(),  # 기본은 랜덤 퍼블릭 IP
             "headers": {"User-Agent": "Mozilla/5.0", "Accept": "text/html"},
             "path": random.choice(["/home", "/products", "/login"]),
             "method": "GET",
@@ -120,35 +150,26 @@ def run_random_tests(n: int = 50):
         }
 
         if traffic_type == 'rule_attack':
+            # 룰은 IP도 랜덤으로, 특징만 공격적으로
             payload["headers"]["User-Agent"] = "sqlmap"
-            payload["ip"] = "1.12.1.1" # 차단 국가
-        
+
         elif traffic_type == 'ml_attack':
-            # ML 공격은 상태 유지가 필요하므로, 지정된 IP 중 하나를 사용
+            # ML은 '상태풀' 중 하나를 재사용 → 같은 IP가 여러 번 나타나도록
             payload["ip"] = random.choice(stateful_ips)
-            
-            # 다양한 ML 공격 유형을 시뮬레이션
+
             attack_subtype = random.choice(['path_scan', 'long_path', 'weird_header'])
-
             if attack_subtype == 'path_scan':
-                # 유니크한 경로를 빠르게 스캔하는 행위
                 payload["path"] = "/" + ''.join(random.choices(string.ascii_lowercase + string.digits, k=20))
-            
             elif attack_subtype == 'long_path':
-                # 비정상적으로 긴 경로 요청
                 payload["path"] = "/api/v1/data/" + ''.join(random.choices(string.ascii_lowercase, k=100))
-
             elif attack_subtype == 'weird_header':
-                # 학습 데이터에 없을 가능성이 높은 비정상적인 헤더 값
                 payload["headers"]["Referer"] = f"http://unusual-site-{random.randint(1,100)}.com/entry"
                 payload["headers"]["Accept"] = "application/x-shockwave-flash, */*"
                 payload["method"] = "POST"
 
-            # app.py의 상태 관리 로직이 짧은 시간 내의 연속적인 요청을 탐지할 것임
-        
         result = send_request(payload)
         method = result.get("method", "normal")
-        
+
         if result.get("anomaly"):
             if method in stats:
                 stats[method] += 1
@@ -157,7 +178,7 @@ def run_random_tests(n: int = 50):
 
         if (i + 1) % 10 == 0:
             print(f"  ... {i+1}/{n} 요청 처리 완료")
-        
+
         time.sleep(random.uniform(0.1, 0.5))
 
     print_summary(stats)
