@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: responder-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: responder
+  template:
+    metadata:
+      labels:
+        app: responder
+    spec:
+      containers:
+      - name: responder
+        image: waf-responder:latest # <-- 중요: 실제 이미지 경로로 변경하세요
+        ports:
+        - containerPort: 8000
+        env:
+        - name: REDIS_HOST
+          value: "redis" # Kubernetes 서비스 이름을 사용
+        - name: DETECTION_URL
+          value: "http://detection:5000/detect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: responder
+spec:
+  type: LoadBalancer # 외부 접근을 위해 LoadBalancer 타입 사용 (테스트용)
+  selector:
+    app: responder
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000

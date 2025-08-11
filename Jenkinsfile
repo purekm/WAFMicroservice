@@ -8,13 +8,19 @@ pipeline {
                 checkout scm
             }
         }
-
         stage('Run Services with Docker Compose') {
             steps {
-                echo " Docker Compose로 모든 서비스 시작 중..."
-                sh "docker-compose up --build -d"
+                echo " Docker Compose로 이미지 build"
+                sh "docker-compose build"
             }
         }
+
+        // stage('Run Services with Docker Compose') {
+        //     steps {
+        //         echo " Docker Compose로 컨테이너 실행까지 "
+        //         sh "docker-compose up --build -d"
+        //     }
+        // }
 
         // stage('Check Running') {
         //     steps {
