@@ -27,7 +27,7 @@ async def detect(request: Request):
             # Responder에 차단 요청
             async with httpx.AsyncClient() as client:
                 await client.post(RESPONDER_URL, json={
-                    "ip_address": client_ip,
+                    "ip": client_ip,
                     "reason": "Rule-based detection"
                 })
             return {"anomaly": True, "method": "rule"}
@@ -38,7 +38,7 @@ async def detect(request: Request):
             # Responder에 차단 요청
             async with httpx.AsyncClient() as client:
                 await client.post(RESPONDER_URL, json={
-                    "ip_address": client_ip,
+                    "ip": client_ip,
                     "reason": "ML-based detection"
                 })
             return {"anomaly": True, "method": "ml"}
