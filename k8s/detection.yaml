@@ -26,6 +26,7 @@ kind: Service
 metadata:
   name: detection
 spec:
+  type: LoadBalancer # 외부 접근을 위해 NodePort 타입 사용
   selector:
     app: detection
   ports:
