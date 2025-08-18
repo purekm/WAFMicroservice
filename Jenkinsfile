@@ -9,7 +9,8 @@ pipeline {
             }
         }
 
-        stage('Run Services with Docker Compose') { //이미지빌드
+// 이미지 빌드 추후 ECR에 등록까지 할 예정
+        stage('Run Services with Docker Compose') { 
             steps {
                 echo " Docker Compose로 이미지 build"
                 sh "docker-compose build"
