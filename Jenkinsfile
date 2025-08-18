@@ -8,7 +8,8 @@ pipeline {
                 checkout scm
             }
         }
-        stage('Run Services with Docker Compose') {
+
+        stage('Run Services with Docker Compose') { //이미지빌드
             steps {
                 echo " Docker Compose로 이미지 build"
                 sh "docker-compose build"
