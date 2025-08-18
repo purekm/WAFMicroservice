@@ -8,9 +8,8 @@ app = FastAPI()
 
 import os
 
-# 환경 변수에서 Responder 서비스의 주소를 읽어옵니다.
-# 만약 환경 변수가 없으면, 로컬 테스트를 위해 기본값으로 localhost를 사용합니다.
-RESPONDER_URL = os.getenv("RESPONDER_URL", "http://127.0.0.1:8000/block")
+# ECS에 환경변수 설정이 가능하다고 함. 일단은 환경변수 설정은 안했을 땐 오른쪽의 url로 보내기 때문에 제대로 갈 것 같음.
+RESPONDER_URL = os.getenv("RESPONDER_URL", "http://WAFMicroservice-ALB-633895454.ap-northeast-2.elb.amazonaws.com/responder/block")
 
 from fastapi.responses import JSONResponse
 

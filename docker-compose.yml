@@ -1,15 +1,6 @@
 version: '3.8'
 
 services:
-  redis:
-    image: redis:7-alpine
-    # container_name: waf_redis
-    command: redis-server --save 60 1 --loglevel warning
-    volumes:
-      - ./redis-data:/data
-    ports:
-      - "6379:6379"
-
   responder:
     build: ./responder
     # container_name: waf_responder
@@ -17,9 +8,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - REDIS_HOST=redis
-    depends_on:
-      - redis
+      - REDIS_HOST=clustercfg.wafcache2.jwukuh.apn2.cache.amazonaws.com
 
   detection:
     build: ./detection
@@ -29,4 +18,4 @@ services:
       - "5000:5000"
     environment:
       # detection 서비스에 Responder의 주소를 알려줍니다.
-      - RESPONDER_URL=http://responder:8000/block
+      - RESPONDER_URL=http://WAFMicroservice-ALB-633895454.ap-northeast-2.elb.amazonaws.com/responder/block

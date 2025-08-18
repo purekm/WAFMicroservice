@@ -1,29 +1,31 @@
 
 import os
 import redis
+from redis.cluster import RedisCluster, ClusterConnectionError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 # --- Redis 연결 설정 ---
 # docker-compose에서 설정한 환경 변수 'REDIS_HOST'를 읽어옵니다.
 # 환경 변수가 없으면 기본값으로 'redis'를 사용합니다.
-REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_HOST = os.getenv("REDIS_HOST", "clustercfg.wafcache2.jwukuh.apn2.cache.amazonaws.com")
 REDIS_PORT = 6379
 BLACKLIST_EXPIRATION_SECONDS = 300  # 5분
 
 try:
     # decode_responses=True: Redis에서 받은 응답을 자동으로 UTF-8 문자열로 변환합니다.
-    redis_client = redis.Redis(
+    # Redis Cluster에 연결하기 위해 RedisCluster 클라이언트를 사용합니다.
+    redis_client = RedisCluster(
         host=REDIS_HOST,
         port=REDIS_PORT,
-        db=0,
         decode_responses=True,
-        socket_connect_timeout=5
+        socket_connect_timeout=5,
+        skip_full_coverage_check=True  # AWS ElastiCache와 같은 관리형 서비스를 위한 설정
     )
     redis_client.ping()  # 연결 테스트
-    print(f"✅ Successfully connected to Redis at {REDIS_HOST}")
-except redis.exceptions.ConnectionError as e:
-    print(f"❌ Error connecting to Redis: {e}")
+    print(f"✅ Successfully connected to Redis Cluster at {REDIS_HOST}")
+except (ClusterConnectionError, redis.exceptions.ConnectionError) as e:
+    print(f"❌ Error connecting to Redis Cluster: {e}")
     redis_client = None
 
 # --- 데이터 모델 정의 ---
