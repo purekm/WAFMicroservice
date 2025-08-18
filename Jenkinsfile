@@ -37,6 +37,7 @@ pipeline {
             }
         }
 
+        // 기존에는 이미지 빌드까지만 진행되었지만, build 후 ECR에 푸시하는 단계가 추가되었습니다.
         stage('Push to ECR') {
             steps {
                 script {
