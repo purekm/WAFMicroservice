@@ -1,7 +1,6 @@
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
 from redis.cluster import RedisCluster
 from redis.exceptions import RedisError
 
