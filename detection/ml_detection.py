@@ -154,16 +154,16 @@ def ml_detect(data: dict) -> bool:
     try:
         vec = _feature_vector(data)
         
-        # 디버깅을 위해 피처 벡터 출력
-        print("\n[DEBUG] Feature Vector:")
-        print(vec.to_string())
+        # # 디버깅을 위해 피처 벡터 출력
+        # print("\n[DEBUG] Feature Vector:")
+        # print(vec.to_string())
 
         # 두 파이프라인 모델이 알아서 스케일링 후 예측
         pred_if = _model.predict(vec)[0]
         pred_lof = _lof_model.predict(vec)[0]
 
-        # 디버그 출력
-        print(f"[ML DETECT DEBUG] IF: {pred_if}, LOF: {pred_lof}")
+        # # 디버그 출력
+        # print(f"[ML DETECT DEBUG] IF: {pred_if}, LOF: {pred_lof}")
 
         # 한 모델이라도 이상치(-1)로 판단하면 True 반환
         if pred_if == -1 or pred_lof == -1:

@@ -4,7 +4,7 @@ import time
 import random
 import string
 
-API_URL = "http://127.0.0.1:5000/detect"
+API_URL = "https://dr43t8f59om7c.cloudfront.net/wafinputlambda"
 
 def send_request(payload: dict) -> dict:
     """요청을 전송하고 JSON 응답을 반환합니다."""
