@@ -9,7 +9,7 @@ app = FastAPI()
 import os
 
 # ECS에 환경변수 설정이 가능하다고 함. 일단은 환경변수 설정은 안했을 땐 오른쪽의 url로 보내기 때문에 제대로 갈 것 같음.
-RESPONDER_URL = os.getenv("RESPONDER_URL", "http://WAFMicroservice-ALB-633895454.ap-northeast-2.elb.amazonaws.com/responder/block")
+RESPONDER_URL = os.getenv("RESPONDER_URL", "http://WAFMicroservice-ALB-633895454.ap-northeast-2.elb.amazonaws.com/block")
 
 from fastapi.responses import JSONResponse
 
