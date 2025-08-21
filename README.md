@@ -28,19 +28,7 @@ WAF Microservice는 실제 운영 환경, 특히 AWS 클라우드 환경에 최�
 *   **Database**: Elasticache (Redis)
 *   **AWS**: ECS, ECR, ALB, Lambda
 
-## 5. 시작하기 (Getting Started)
-
-Docker와 `docker-compose`가 설치된 환경에서 아래 명령어로 간단히 실행할 수 있습니다.
-
-```bash
-# 1. 프로젝트 클론
-git clone https://github.com/purekm/WAFMicroservice.git
-cd edos
-
-# 2. Docker 컨테이너 실행
-docker-compose up -d
-```
-## 6. 향후 계획 (Future Plans)
+## 5. 향후 계획 (Future Plans)
 
 WAF Microservice는 다음과 같은 기능들을 추가하여 지속적으로 발전할 계획입니다.
 
@@ -48,3 +36,4 @@ WAF Microservice는 다음과 같은 기능들을 추가하여 지속적으로 �
 모델 고도화: 지도학습 도입 및 적응형 임계값 적용
 피처 확장: TLS 지문(JA4), GeoIP/ASN 정보 분석 기능 추가
 클라우드 인프라 구조 고도화
+오픈소스화
