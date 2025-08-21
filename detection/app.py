@@ -4,6 +4,7 @@ from detection import rule_detect
 from ml_detection import ml_detect
 import httpx
 
+# detection/app.py
 # FastAPI 앱 생성
 app = FastAPI()
 
