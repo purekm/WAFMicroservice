@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from redis.cluster import RedisCluster
 from redis.exceptions import RedisError
 
+# responder/app.py
 # --- 설정 ---
 # - 환경 변수에서 Redis 호스트, 포트, 블랙리스트 만료 시간을 가져옴
 # - 환경 변수가 없으면 기본값을 사용
