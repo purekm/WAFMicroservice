@@ -3,12 +3,11 @@ from fastapi import FastAPI, Request
 from detection import rule_detect
 from ml_detection import ml_detect
 import httpx
+import os
 
 # detection/app.py
 # FastAPI 앱 생성
 app = FastAPI()
-
-import os
 
 # 응답기 URL 설정, 환경 변수가 없으면 기본 URL 사용
 # ECS 환경 변수를 사용해 URL을 설정할 수 있음
