@@ -2,6 +2,9 @@ import requests, random, time, csv
 from datetime import datetime
 
 # --- 정상 트래픽 데이터 풀 ---
+# - 다양한 정상적인 Referer, Authorization, Path, User-Agent, Accept-Type, Method를 정의
+# - 실제 웹 환경에서 볼 수 있는 다양한 형태의 데이터를 포함
+
 normal_referers = [
     "https://www.google.com/search?q=fastapi",
     "https://search.naver.com/search.naver?query=fastapi",
@@ -49,6 +52,9 @@ normal_method_type = ['GET', 'POST', 'PUT', 'DELETE']
 
 
 # --- 비정상 트래픽 데이터 풀 ---
+# - 비정상적인 IP, Method, Referer, Authorization, User-Agent, Accept-Type을 정의
+# - 공격 시도나 비정상적인 클라이언트에서 나타날 수 있는 데이터를 포함
+
 abnormal_ips = [f"10.0.0.{random.randint(100, 200)}" for _ in range(10)]
 abnormal_methods = ["MAKE", "INVALID", "TRACE", "OPTIONS"]
 abnormal_referers = ["", "localhost", "http://evil.site", "http://malicious.co"]
@@ -63,7 +69,7 @@ abnormal_authorizations = [
 abnormal_uas = ["curl/7.68.0", "python-requests/2.31.0", "Nmap scripting engine"]
 abnormal_accepts = ["", "text/Google", "application/zzz", "*/*;q=0.1"]
 
-# 공격 유형별 URI
+# 공격 유형별 URI 정의
 attack_paths = {
     "sql_injection": ["/search?q=' OR '1'='1", "/login?user=' OR 1=1 --"],
     "xss": ["/comment?text=<script>alert('XSS')</script>", "/profile?name=<img src=x onerror=alert(1)>"],
@@ -73,11 +79,15 @@ attack_paths = {
 }
 
 
+# --- 트래픽 로그 생성 ---
+# - "traffic_log.csv" 파일을 생성하고 헤더를 작성
 with open("traffic_log.csv", "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["ip", "timestamp", "method", "path", "ua", "referer", "authorization", "accept_type", "cookie_count"])
 
-    # --- 현실적인 정상 트래픽 생성 ---
+    # --- 현실적인 정상 트래픽 생성 (800개) ---
+    # - 공개/회원 경로를 구분하고, 60%는 회원 트래픽으로 생성
+    # - 실제 사용자와 유사한 트래픽 패턴을 만들기 위해 다양한 데이터를 조합
     public_paths = [p for p in normal_paths if "mypage" not in p and "cart" not in p and "user" not in p and "checkout" not in p]
     member_paths = [p for p in normal_paths if "mypage" in p or "cart" in p or "user" in p or "checkout" in p]
     valid_auth_tokens = [auth for auth in normal_authorizations if auth != ""]
@@ -105,9 +115,11 @@ with open("traffic_log.csv", "w", newline="") as f:
             random.choice(normal_accept_type),
             random.randint(1, 5)
         ])
-        time.sleep(random.uniform(0.1, 0.5))
+        time.sleep(random.uniform(0.1, 0.5)) # 요청 간 시간 간격 부여
 
-    # --- 비정상 트래픽 생성 ---
+    # --- 비정상 트래픽 생성 (200개) ---
+    # - 정의된 비정상 데이터 풀과 공격 유형별 URI를 조합하여 생성
+    # - 다양한 공격 시나리오를 시뮬레이션
     for i in range(200):
         attack_type = random.choice(list(attack_paths.keys()))
         
@@ -122,4 +134,4 @@ with open("traffic_log.csv", "w", newline="") as f:
             random.choice(abnormal_accepts),
             random.randint(0, 1)
         ])
-        time.sleep(random.uniform(0.01, 0.1))
+        time.sleep(random.uniform(0.01, 0.1)) # 비정상 트래픽은 더 짧은 간격으로 생성

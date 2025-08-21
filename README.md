@@ -16,32 +16,17 @@
 
 WAF Microservice는 실제 운영 환경, 특히 AWS 클라우드 환경에 최적화된 유연한 아키텍처를 기반으로 설계되었습니다. 핵심은 **실시간 요청-응답 경로에 영향을 주지 않는 비동기 분석 방식**으로 동작하여, 보안 분석으로 인한 지연(latency)을 원천적으로 제거하는 것입니다.
 
-#### 대표적인 운영 아키텍처 (AWS 기반 예시)
+![alt text](image.png)
 
-
-## 4. 핵심 탐지 특징 (Core Detection Features)
-
-WAF Microservice의 머신러닝 모델은 다음과 같은 특징들을 핵심적으로 분석합니다.
-
-*   `path_depth`, `path_token_count`
-*   `path_token_numeric_ratio`
-*   `uri_entropy`
-*   `auth_validity`
-*   `referer_domain`
-*   `method`, `accept_type`
-*   `cookie_count`
-*   `req_count`, `req_count_in_last_10s`
-*   `interval`
-*   `unique_paths_in_last_60s`
-
-## 5. 기술 스택 (Technology Stack)
+## 4. 기술 스택 (Technology Stack)
 
 *   **Backend**: Python, FastAPI
 *   **ML/Data**: Scikit-learn, Pandas, Numpy
-*   **Infrastructure**: Docker, Kubernetes(k8s)
-*   **Database/Cache**: Valkey (Redis)
+*   **Infrastructure**: Docker, DockerCompose, Jenkins
+*   **Database**: Elasticache (Redis)
+*   **AWS**: ECS, ECR, ALB, Lambda
 
-## 6. 시작하기 (Getting Started)
+## 5. 시작하기 (Getting Started)
 
 Docker와 `docker-compose`가 설치된 환경에서 아래 명령어로 간단히 실행할 수 있습니다.
 
@@ -54,10 +39,11 @@ cd edos
 docker-compose up -d
 ```
 
-## 7. 향후 계획 (Future Plans)
+## 6. 향후 계획 (Future Plans)
 
 WAF Microservice는 다음과 같은 기능들을 추가하여 지속적으로 발전할 계획입니다.
 
-*   JA4/JA4S 기반 TLS Fingerprinting 기능 추가
-*   지도 학습(Supervised Learning) 모델 도입
-*   룰 기반 탐지에 Suritaka 도입 검토
+하이브리드 탐지: Suricata 도입, 시그니처 기반 탐지 추가
+모델 고도화: 지도학습 도입 및 적응형 임계값 적용
+피처 확장: TLS 지문(JA4), GeoIP/ASN 정보 분석 기능 추가
+클라우드 인프라 구조 고도화

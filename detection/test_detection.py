@@ -1,18 +1,21 @@
-# test_detection.py (API Endpoint Tester)
+# test_detection.py (종합 테스트용 API Endpoint Tester)
 import requests
 import time
 import random
 import string
 
+# 테스트할 API 엔드포인트 URL
 API_URL = "https://dr43t8f59om7c.cloudfront.net/wafinputlambda"
 
 def send_request(payload: dict) -> dict:
     """요청을 전송하고 JSON 응답을 반환합니다."""
     try:
+        # 지정된 URL에 POST 요청을 보냄
         resp = requests.post(API_URL, json=payload, timeout=3)
-        resp.raise_for_status()
+        resp.raise_for_status() # HTTP 오류 발생 시 예외 발생
         return resp.json()
     except requests.exceptions.RequestException as e:
+        # 요청 실패 시 에러 정보를 포함한 응답 반환
         return {"anomaly": True, "method": "error", "detail": str(e)}
 
 def print_result(ip: str, test_name: str, result: dict, payload: dict):
@@ -27,7 +30,7 @@ def test_normal_case():
     """정상적인 단일 요청 테스트"""
     print("--- 일반 단일 요청 테스트 ---")
     payload = {
-        "ip": "8.8.8.8",
+        "ip": "8.8.8.8", # 구글 DNS IP (정상)
         "headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -44,7 +47,7 @@ def test_normal_case():
 def test_rule_based_cases():
     """규칙 기반으로 탐지되어야 하는 케이스들"""
     print("\n--- 규칙 기반 탐지 테스트 ---")
-    # 1. User-Agent 블랙리스트
+    # 1. User-Agent 블랙리스트 (sqlmap)
     payload_ua = {"ip": "1.1.1.1", "headers": {"User-Agent": "sqlmap"}, "path": "/", "method": "GET"}
     result_ua = send_request(payload_ua)
     print_result(payload_ua["ip"], "UA 블랙리스트 (sqlmap)", result_ua, payload_ua)
@@ -59,7 +62,7 @@ def test_stateful_ml_cases():
     print("\n--- 상태 기반 ML 탐지 테스트 ---")
     test_ip = "10.10.10.10"
 
-    # Case 1: 짧은 시간 내에 많은 요청 (req_count_in_last_10s)
+    # Case 1: 짧은 시간 내에 많은 요청 (req_count_in_last_10s 특징)
     print("  (1) 짧은 시간 내 대량 요청 테스트")
     for i in range(15):
         payload = {
@@ -77,7 +80,7 @@ def test_stateful_ml_cases():
     else:
         print_result(test_ip, "대량 요청 (탐지 실패)", {"anomaly": False}, payload)
 
-    # Case 2: 짧은 시간 내에 다양한 경로 요청 (unique_paths_in_last_60s)
+    # Case 2: 짧은 시간 내에 다양한 경로 요청 (unique_paths_in_last_60s 특징)
     time.sleep(1) # 테스트 케이스 간 구분을 위한 대기
     print("\n  (2) 짧은 시간 내 다양한 경로 스캔 테스트")
     test_ip_2 = "20.20.20.20"
@@ -99,50 +102,36 @@ def test_stateful_ml_cases():
         print_result(test_ip_2, "경로 스캔 (탐지 실패)", {"anomaly": False}, payload)
 
 def generate_public_ip():
-    """사설/예약 대역을 피해서 대략적인 퍼블릭 IP 생성"""
+    """사설/예약 대역을 피해서 대략적인 퍼블릭 IP를 생성합니다."""
     while True:
-        a = random.randint(1, 223)     # 224~는 멀티캐스트 등 제외
+        a = random.randint(1, 223)     # A, B, C 클래스 범위
         b = random.randint(0, 255)
         c = random.randint(0, 255)
-        d = random.randint(1, 254)     # .0, .255 회피
+        d = random.randint(1, 254)     # 브로드캐스트 주소(.0, .255) 회피
 
-        # 사설/예약/루프백/링크로컬 등 제외
-        if a == 10:                       # 10.0.0.0/8
-            continue
-        if a == 127:                      # 127.0.0.0/8
-            continue
-        if a == 172 and 16 <= b <= 31:    # 172.16.0.0/12
-            continue
-        if a == 192 and b == 168:         # 192.168.0.0/16
-            continue
-        if a == 169 and b == 254:         # 169.254.0.0/16
-            continue
-        if a == 100 and 64 <= b <= 127:   # 100.64.0.0/10
-            continue
-        if a == 192 and b == 0 and c == 2:    # 192.0.2.0/24 TEST-NET-1
-            continue
-        if a == 198 and b in (18,19):     # 198.18.0.0/15
-            continue
-        if a == 192 and b == 88 and c == 99:  # 192.88.99.0/24
-            continue
+        # 사설 IP, 예약된 IP 대역 제외
+        if a == 10: continue                       # 10.0.0.0/8
+        if a == 127: continue                      # 127.0.0.0/8 (루프백)
+        if a == 172 and 16 <= b <= 31: continue    # 172.16.0.0/12
+        if a == 192 and b == 168: continue         # 192.168.0.0/16
+        if a == 169 and b == 254: continue         # 169.254.0.0/16 (링크-로컬)
+        # ... 기타 예약 대역
         return f"{a}.{b}.{c}.{d}"
-        
+
 def run_random_tests(n: int = 50):
-    """무작위 요청을 생성하여 시스템을 테스트 (룰/ML 모두 랜덤 IP).
-       ML은 '랜덤으로 만든 상태풀'에서 반복 사용 -> 상태 기반 탐지 신호 확보"""
+    """무작위 요청을 생성하여 시스템을 테스트합니다."""
     print(f"\n--- 무작위 테스트 ({n}회) ---")
     stats = {"rule": 0, "ml": 0, "normal": 0, "error": 0, "total": n}
 
-    # 1) 상태 유지할 '랜덤 퍼블릭 IP' 풀을 먼저 만들어 둠 (예: 40개)
+    # 상태 기반 ML 탐지를 테스트하기 위해 IP 주소 풀을 미리 생성
     stateful_ips = [generate_public_ip() for _ in range(40)]
 
-    # 2) 룰 공격도 매번 랜덤 IP 사용 (원하면 블랙리스트 국가지역 풀 따로 둘 수도)
-    #    여기선 UA=sqlmap 만으로 룰이 트리거된다고 가정
     for i in range(n):
+        # 50% 정상, 25% 룰 공격, 25% ML 공격 트래픽 생성
         traffic_type = random.choices(['normal', 'rule_attack', 'ml_attack'], [0.5, 0.25, 0.25])[0]
 
         payload = {
-            "ip": generate_public_ip(),  # 기본은 랜덤 퍼블릭 IP
+            "ip": generate_public_ip(), # 기본적으로 매번 새로운 랜덤 IP 사용
             "headers": {"User-Agent": "Mozilla/5.0", "Accept": "text/html"},
             "path": random.choice(["/home", "/products", "/login"]),
             "method": "GET",
@@ -150,13 +139,14 @@ def run_random_tests(n: int = 50):
         }
 
         if traffic_type == 'rule_attack':
-            # 룰은 IP도 랜덤으로, 특징만 공격적으로
+            # 룰 기반 공격: User-Agent를 'sqlmap'으로 설정
             payload["headers"]["User-Agent"] = "sqlmap"
 
         elif traffic_type == 'ml_attack':
-            # ML은 '상태풀' 중 하나를 재사용 → 같은 IP가 여러 번 나타나도록
+            # ML 기반 공격: 미리 만들어둔 IP 풀에서 랜덤하게 선택하여 상태 유지
             payload["ip"] = random.choice(stateful_ips)
 
+            # 다양한 ML 공격 유형 시뮬레이션
             attack_subtype = random.choice(['path_scan', 'long_path', 'weird_header'])
             if attack_subtype == 'path_scan':
                 payload["path"] = "/" + ''.join(random.choices(string.ascii_lowercase + string.digits, k=20))
@@ -170,6 +160,7 @@ def run_random_tests(n: int = 50):
         result = send_request(payload)
         method = result.get("method", "normal")
 
+        # 결과 통계 집계
         if result.get("anomaly"):
             if method in stats:
                 stats[method] += 1
@@ -184,6 +175,7 @@ def run_random_tests(n: int = 50):
     print_summary(stats)
 
 def print_summary(stats):
+    """테스트 결과 요약 출력"""
     print("\n--- 테스트 결과 요약 ---")
     for key, value in stats.items():
         print(f"{key.capitalize():<10}: {value}")
@@ -193,10 +185,10 @@ if __name__ == "__main__":
     print("WAF 탐지 시스템 테스트를 시작합니다.")
     print(f"API Endpoint: {API_URL}\n")
 
-    # 정의된 케이스 테스트
+    # 정의된 케이스 테스트 실행
     test_normal_case()
     test_rule_based_cases()
     test_stateful_ml_cases()
 
-    # 무작위 케이스 테스트
+    # 무작위 케이스 테스트 실행
     run_random_tests(50)
