@@ -16,7 +16,8 @@
 
 WAF Microservice는 실제 운영 환경, 특히 AWS 클라우드 환경에 최적화된 유연한 아키텍처를 기반으로 설계되었습니다. 핵심은 **실시간 요청-응답 경로에 영향을 주지 않는 비동기 분석 방식**으로 동작하여, 보안 분석으로 인한 지연(latency)을 원천적으로 제거하는 것입니다.
 
-![alt text](image.png)
+<img width="536" height="458" alt="image" src="https://github.com/user-attachments/assets/3b90bfe8-d514-4fc8-a397-72f41d23f13f" />
+
 
 ## 4. 기술 스택 (Technology Stack)
 
