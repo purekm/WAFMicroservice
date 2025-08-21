@@ -39,7 +39,6 @@ cd edos
 # 2. Docker 컨테이너 실행
 docker-compose up -d
 ```
-
 ## 6. 향후 계획 (Future Plans)
 
 WAF Microservice는 다음과 같은 기능들을 추가하여 지속적으로 발전할 계획입니다.
