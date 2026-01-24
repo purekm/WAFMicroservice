@@ -60,3 +60,10 @@ Thumbs.db
 *.jpeg
 *.gif
 *.svg
+
+# .gitignore 권장 추가 사항
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.exe

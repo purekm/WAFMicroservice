@@ -1,0 +1,41 @@
+# 1. 로드밸런서 본체 생성
+resource "aws_lb" "main" {
+  name               = "edos-alb"
+  internal           = false # 외부 인터넷에서 접속 가능하도록 설정
+  load_balancer_type = "application" # HTTP 프로토콜사용하니까 application type 사용
+  security_groups    = [aws_security_group.alb_sg.id] # security.tf 참조
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_c.id] # public 서브넷 2개 배치
+
+  tags = { Name = "edos-alb" }
+}
+
+# 2. 타겟 그룹 생성 (로컬 k8s의 Detection/Responder 서버로 전달될 곳)
+resource "aws_lb_target_group" "main" {
+  name        = "edos-tg"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip" # 로컬 k8s를 터널링으로 연결할 것이므로 IP 방식 권장
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+}
+
+# 3. 리스너 생성 (80 포트로 들어오는 요청 수신)
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.main.arn
+  }
+}

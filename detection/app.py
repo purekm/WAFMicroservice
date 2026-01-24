@@ -11,7 +11,7 @@ app = FastAPI()
 
 # 응답기 URL 설정, 환경 변수가 없으면 기본 URL 사용
 # ECS 환경 변수를 사용해 URL을 설정할 수 있음
-RESPONDER_URL = os.getenv("RESPONDER_URL", "http://WAFMicroservice-ALB-633895454.ap-northeast-2.elb.amazonaws.com/block")
+RESPONDER_HOST = os.getenv("RESPONDER_URL")
 
 from fastapi.responses import JSONResponse
 
@@ -33,10 +33,7 @@ async def detect(request: Request):
             print(f"[RULE] 탐지됨! IP: {client_ip}")
             # Responder에 차단 요청 전송
             async with httpx.AsyncClient() as client:
-                await client.post(RESPONDER_URL, json={
-                    "ip": client_ip,
-                    "reason": "Rule-based detection"
-                })
+                await client.post(f"{RESPONDER_HOST}/block", json={"ip": client_ip})
             return {"anomaly": True, "method": "rule"}
 
         # 2단계: ML 기반 탐지
@@ -44,10 +41,7 @@ async def detect(request: Request):
             print(f"[ML] 탐지됨! IP: {client_ip}")
             # Responder에 차단 요청 전송
             async with httpx.AsyncClient() as client:
-                await client.post(RESPONDER_URL, json={
-                    "ip": client_ip,
-                    "reason": "ML-based detection"
-                })
+                await client.post(f"{RESPONDER_HOST}/block", json={"ip": client_ip})
             return {"anomaly": True, "method": "ml"}
 
         # 정상 트래픽으로 판단

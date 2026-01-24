@@ -1,31 +1,25 @@
 import os
+import redis
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from redis.cluster import RedisCluster
-from redis.exceptions import RedisError
 
-# responder/app.py
-# --- 설정 ---
-# - 환경 변수에서 Redis 호스트, 포트, 블랙리스트 만료 시간을 가져옴
-# - 환경 변수가 없으면 기본값을 사용
-REDIS_HOST = os.getenv("REDIS_HOST", "clustercfg.wafcache3.jwukuh.apn2.cache.amazonaws.com")
+# 테라폼 output에서 나올 주소를 환경 변수로 받음
+REDIS_HOST = os.getenv("REDIS_HOST") 
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-TTL_SECONDS = int(os.getenv("BLACKLIST_EXPIRATION_SECONDS", "300"))  # 기본 5분
+TTL_SECONDS = int(os.getenv("BLACKLIST_EXPIRATION_SECONDS", "3600"))
 
-# --- Redis 클러스터 연결 ---
+# 클러스터 모드가 아닌 일반 Redis/Valkey 연결로 수정
 try:
-    # - 주어진 호스트와 포트로 Redis 클러스터에 연결
-    r = RedisCluster(
+    r = redis.StrictRedis(
         host=REDIS_HOST,
         port=REDIS_PORT,
-        decode_responses=True,          # 응답을 UTF-8로 디코딩
-        socket_connect_timeout=5,       # 연결 타임아웃 5초
-        socket_timeout=5,               # 읽기/쓰기 타임아웃 5초
-        skip_full_coverage_check=True,  # 모든 노드를 확인하지 않고 시작
+        decode_responses=True,
+        socket_connect_timeout=3,
+        retry_on_timeout=True
     )
-    r.ping() # 연결 테스트
-except RedisError as e:
-    print("Redis connect fail:", e)
+    r.ping()
+except Exception as e:
+    print(f"Valkey 연결 실패: {e}")
     r = None
 
 # --- FastAPI 앱 생성 ---
@@ -79,12 +73,6 @@ def is_blocked(ip: str):
 
 @app.get("/health")
 def health():
-    """
-    - 서비스 및 Redis 연결 상태를 확인하는 헬스 체크 엔드포인트
-    """
-    need_redis() # Redis 연결 확인
-    try:
-        r.ping() # Redis 서버에 PING을 보내 응답 확인
+    if r and r.ping():
         return {"status": "ok"}
-    except RedisError:
-        raise HTTPException(status_code=503, detail="Redis ping failed")
+    raise HTTPException(status_code=503, detail="Redis connection failed")
