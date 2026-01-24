@@ -36,5 +36,18 @@ aws_elasticache_replication_group.redis.primary_endpoint_address
 이뿐만이 아니라 리소스가 변경됨으로써 정의해야되는 요소들도 많이 변경됨
 description 추가 및 num_cache_clusters, replication_group_id 수정하고 난 뒤에 elasticache 구성 완료!
 
+ALB 주소 및 Valkey 주소 정리
+콘솔에서 계속 복붙하려니 힘들 것 같았는데, output 파일의 존재를 알게되어 저장하게 됨!
+
+output "alb_dns_name" {
+  description = "생성된 로드밸런서의 접속 주소"
+  value       = aws_lb.main.dns_name # 이 리소스의 dns_name 속성값을 보여줘!
+}
+
+output "valkey_primary_endpoint" {
+  description = "Valkey 복제 그룹의 마스터 엔드포인트"
+  value       = aws_elasticache_replication_group.redis.primary_endpoint_address
+}
+
 
 

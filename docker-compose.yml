@@ -3,19 +3,8 @@ version: '3.8'
 services:
   responder:
     build: ./responder
-    # container_name: waf_responder
-    image: waf-responder:latest 
-    ports:
-      - "8000:8000"
-    environment:
-      - REDIS_HOST=clustercfg.wafcache2.jwukuh.apn2.cache.amazonaws.com
+    image: waf-responder:latest # 빌드 후 생성될 이미지 이름 명시
 
   detection:
     build: ./detection
-    # container_name: waf_detection
-    image: waf-detection:latest
-    ports:
-      - "5000:5000"
-    environment:
-      # detection 서비스에 Responder의 주소를 알려줍니다.
-      - RESPONDER_URL=http://WAFMicroservice-ALB-633895454.ap-northeast-2.elb.amazonaws.com/responder/block
+    image: waf-detection:latest # 빌드 후 생성될 이미지 이름 명시
