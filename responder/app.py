@@ -8,7 +8,7 @@ REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 TTL_SECONDS = int(os.getenv("BLACKLIST_EXPIRATION_SECONDS", "3600"))
 
-# 클러스터 모드가 아닌 일반 Redis/Valkey 연결로 수정
+# Valkey 연결로 수정
 try:
     r = redis.StrictRedis(
         host=REDIS_HOST,
