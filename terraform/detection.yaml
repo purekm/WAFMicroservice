@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: detection
+  name: detection
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: detection
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: detection
+    spec:
+      containers:
+      - image: kyeongmin516/waf-detection
+        name: waf-detection
+        resources: {}
+        env:
+        - name: RESPONDER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: waf-configmap
+              key: RESPONDER_URL
+status: {}

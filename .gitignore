@@ -50,9 +50,6 @@ Thumbs.db
 
 # Data and model files
 # If you want to track model files for the competition, comment out the lines below
-*.pkl
-*.mmdb
-*.csv
 
 # Image files
 *.png
