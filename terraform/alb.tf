@@ -5,18 +5,18 @@ resource "aws_lb" "main" {
   load_balancer_type = "application" # HTTP 프로토콜사용하니까 application type 사용
   security_groups    = [aws_security_group.alb_sg.id] # security.tf 참조
   subnets            = [aws_subnet.public_a.id, aws_subnet.public_c.id] # public 서브넷 2개 배치
-
   tags = { Name = "edos-alb" }
 }
+
+
 
 # 2. 타겟 그룹 생성 (로컬 k8s의 Detection/Responder 서버로 전달될 곳)
 resource "aws_lb_target_group" "main" {
   name        = "edos-tg"
   port        = 80
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
   target_type = "ip" # 로컬 k8s를 터널링으로 연결할 것이므로 IP 방식 권장
-
+  vpc_id      = aws_vpc.main.id
   health_check {
     path                = "/"
     protocol            = "HTTP"

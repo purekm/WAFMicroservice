@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: responder
+  name: responder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: responder
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: responder
+    spec:
+      containers:
+      - image: kyeongmin516/waf-responder
+        name: waf-responder
+        resources: {}
+        envFrom:
+        - configMapRef:
+            name: waf-configmap

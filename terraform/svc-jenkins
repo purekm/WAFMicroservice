@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 8080        # Ingress가 바라볼 포트
+      targetPort: 8080  # 실제 젠킨스 포트
