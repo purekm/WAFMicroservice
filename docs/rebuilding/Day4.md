@@ -13,3 +13,10 @@ Nodeport방식이였던 것..! helm 차트로 만들어서 신경 못 쓰고 있
 
 ngrok 할때 NodePort인 30890을 해줘야 함
 
+![alt text](image-11.png)
+
+이번엔 왜 NotFound인가...
+생각해보니 jenkins를 ingress에서 트래픽을 줘서 path 경로를 수정을 안해줬던 것..!
+
+![alt text](image-12.png)
+jenkins를 위한 path 수정완료
