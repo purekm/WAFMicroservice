@@ -10,7 +10,6 @@ import os
 app = FastAPI()
 
 # 응답기 URL 설정, 환경 변수가 없으면 기본 URL 사용
-# ECS 환경 변수를 사용해 URL을 설정할 수 있음
 RESPONDER_HOST = os.getenv("RESPONDER_URL")
 
 # 프로토콜이 없는 경우를 대비한 안전 장치
