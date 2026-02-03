@@ -13,6 +13,10 @@ app = FastAPI()
 # ECS 환경 변수를 사용해 URL을 설정할 수 있음
 RESPONDER_HOST = os.getenv("RESPONDER_URL")
 
+# 프로토콜이 없는 경우를 대비한 안전 장치
+if RESPONDER_HOST and not RESPONDER_HOST.startswith("http"):
+    RESPONDER_HOST = f"http://{RESPONDER_HOST}"
+
 from fastapi.responses import JSONResponse
 
 # "/detect" 엔드포인트, POST 요청 처리

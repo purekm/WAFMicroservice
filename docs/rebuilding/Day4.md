@@ -20,3 +20,19 @@ ngrok 할때 NodePort인 30890을 해줘야 함
 
 ![alt text](image-12.png)
 jenkins를 위한 path 수정완료
+
+![alt text](image-13.png)
+이제 잘되는 것 까지 확인!
+
+![alt text](image-14.png)
+테스트를 위해 ALB에 트래픽(공격) 보내보기
+
+ALB까지는 잘 갔는데, Ingress까지 오지 않음.
+=> ALB는 VPC 내로만 라우팅해주기 때문에.. ALB를 활용하려면 VPN이나 proxy 서버가 필요한데.. 비쌀 것으로 예상.
+일단 트래픽 탐지 및 대응 테스트까지는 ingress로 바로 트래픽을 보내 볼 예정이고, 이후에 테스트를 마치고 나면 ALB 도입해볼 예정
+
+일단은 ngrok을 통해 ingress로 트래픽 보내기!
+
+
+
+
