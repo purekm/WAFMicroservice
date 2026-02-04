@@ -10,12 +10,12 @@ resource "aws_lb" "main" {
 
 
 
-# 2. 타겟 그룹 생성 (로컬 k8s의 Detection/Responder 서버로 전달될 곳)
+# 2. 타겟 그룹 생성 
 resource "aws_lb_target_group" "main" {
   name        = "edos-tg"
-  port        = 80
+  port        = 8080 # 수정한곳!
   protocol    = "HTTP"
-  target_type = "ip" # 로컬 k8s를 터널링으로 연결할 것이므로 IP 방식 권장
+  target_type = "instance" # 로컬 k8s를 터널링으로 연결할 것이므로 IP 방식 권장
   vpc_id      = aws_vpc.main.id
   health_check {
     path                = "/"
@@ -38,4 +38,11 @@ resource "aws_lb_listener" "http" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.main.arn
   }
+}
+
+# EC2를 대상 그룹의 대상으로 작성
+resource "aws_lb_target_group_attachment" "proxy_attachment" {
+  target_group_arn = aws_lb_target_group.main.arn
+  target_id        = aws_instance.proxy_server.id # EC2 리소스 이름
+  port             = 8080                      # 우리가 뚫어놓은 터널 포트
 }

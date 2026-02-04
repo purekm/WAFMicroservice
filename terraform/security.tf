@@ -30,15 +30,22 @@ resource "aws_security_group" "alb_sg" {
   tags = { Name = "edos-alb-sg" }
 }
 
-# 2. Redis를 위한 보안 그룹
+# 2. Redis(Valkey)를 위한 보안 그룹 (Lambda & Proxy 공용)
 resource "aws_security_group" "redis_sg" {
   name        = "edos-redis-sg"
-  description = "Allow access from Lambda only"
+  description = "Allow access from Proxy EC2 and Future Lambda"
   vpc_id      = aws_vpc.main.id
 
-  # 인바운드: 보안 그룹 간 참조를 사용하여 보안 강화
-  # 나중에 만들 Lambda 전용 SG가 생성되면 그 ID를 여기에 넣어야 함
-  # 일단은 편의상 VPC 내부 아이피(10.0.0.0/16) 대역에서만 6379 허용으로 설정
+  # 인바운드 규칙 1: Proxy EC2 (현재 테스트용)
+  ingress {
+    from_port       = 6379
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.proxy_sg.id] 
+  }
+
+  # 인바운드 규칙 2: VPC 내부 대역 (Lambda 및 기타 내부 자원용)
+  # Lambda가 특정 SG를 가지기 전까지는 VPC 내부 통신을 열어두는 것이 확장성에 좋습니다.
   ingress {
     from_port   = 6379
     to_port     = 6379
@@ -52,6 +59,4 @@ resource "aws_security_group" "redis_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = { Name = "edos-redis-sg" }
 }

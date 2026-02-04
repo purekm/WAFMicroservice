@@ -32,7 +32,13 @@ ALB까지는 잘 갔는데, Ingress까지 오지 않음.
 일단 트래픽 탐지 및 대응 테스트까지는 ingress로 바로 트래픽을 보내 볼 예정이고, 이후에 테스트를 마치고 나면 ALB 도입해볼 예정
 
 일단은 ngrok을 통해 ingress로 트래픽 보내기!
+아.. 하루종일 bad request떠서 요청 타입의 문제인가 했었는데.. env로 넣었던 responder_url이 여전히 alb를 사용했던 문제가 존재했었다..
+으아아악 왜이렇게 바보같은건지.. configmap 수정하고 deployment를 restart를 안해줬었다.. 
+detection container의 log를 kubectl log로 확인해보니 여전히 이전 환경변수를 쓰고 있었던;; 환경변수 수정 후 200OK가 나왔다..
 
+하지만 responder -> valkey로 접근하기엔 valkey가 private subnet에 존재해서 불가능..!
+왜이렇게 생각을 못하고 했었는지... 
 
+결국 EC2를 proxy 서버로서 사용하기로 결정!
 
 
